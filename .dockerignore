@@ -1,0 +1,27 @@
+# .dockerignore
+
+# Tells Docker which files NOT to copy into the image
+
+# Works exactly like .gitignore
+
+.env
+
+# Never copy API keys into Docker image!
+
+# You'll inject these at runtime via environment variables
+
+.git
+**pycache**
+_.pyc
+_.pyo
+_.pyd
+venv/
+.venv/
+_.egg-info/
+.pytest_cache/
+notes/
+
+# Notes folder doesn't need to be in production image
+
+.gitignore
+README.md

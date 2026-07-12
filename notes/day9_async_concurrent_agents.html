@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stock Analysis Agent — Day 9</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f14; --surface: #13161d; --card: #1a1e29; --border: #252a38;
+    --day9: #10b981; --day9-dim: rgba(16,185,129,0.12); --day9-glow: rgba(16,185,129,0.22);
+    --yellow: #ffd166; --cyan: #00c2ff; --orange: #ff6b35; --red: #ff4d6a; --purple: #a78bfa;
+    --text: #e8eaf2; --muted: #7a8099; --faint: #3a3f55;
+    --mono: 'JetBrains Mono', monospace; --sans: 'Inter', sans-serif; --display: 'Syne', sans-serif;
+    --radius: 10px; --radius-lg: 16px;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  nav { position: sticky; top: 0; z-index: 100; background: rgba(13,15,20,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; height: 56px; }
+  .nav-brand { font-family: var(--display); font-size: 16px; letter-spacing: 0.04em; color: var(--text); margin-right: auto; display: flex; align-items: center; gap: 8px; }
+  .nav-brand span { color: var(--day9); }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links a { text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 6px; transition: background 0.2s, color 0.2s; color: var(--muted); }
+  .nav-links a:hover { background: var(--card); color: var(--text); }
+  .nav-links a.d9 { color: var(--day9); }
+
+  .hero { padding: 72px 32px 56px; max-width: 900px; margin: 0 auto; text-align: center; }
+  .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--muted); background: var(--card); border: 1px solid var(--border); border-radius: 99px; padding: 5px 14px; margin-bottom: 28px; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--day9); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .hero h1 { font-family: var(--display); font-size: clamp(30px,5vw,50px); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; color: var(--text); margin-bottom: 20px; }
+  .hero h1 .accent { color: var(--day9); }
+  .hero-sub { font-size: 16px; color: var(--muted); max-width: 600px; margin: 0 auto 44px; }
+
+  .speedup-vis { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; margin-top: 32px; }
+  .speed-box { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 28px; min-width: 140px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .speed-box .s-num { font-family: var(--display); font-size: 30px; font-weight: 800; }
+  .speed-box .s-label { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .speed-box.seq .s-num { color: var(--red); }
+  .speed-box.par .s-num { color: var(--day9); }
+  .speed-box.par { border-color: var(--day9); box-shadow: 0 0 22px var(--day9-glow); }
+  .speed-arrow { font-size: 22px; color: var(--faint); align-self: center; }
+
+  .container { max-width: 940px; margin: 0 auto; padding: 0 32px 80px; }
+  .section { margin-bottom: 40px; }
+  .section-label { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-label .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 4px; }
+  .section-label h2 { font-family: var(--display); font-size: 19px; font-weight: 700; }
+
+  .goal-card { background: var(--card); border: 1px solid rgba(16,185,129,0.3); border-radius: var(--radius-lg); padding: 24px 28px; margin-bottom: 36px; box-shadow: 0 0 30px var(--day9-glow); }
+  .goal-card h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; color: var(--day9); margin-bottom: 14px; }
+  .goal-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .goal-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+  .goal-list li::before { content: '→'; font-family: var(--mono); font-size: 13px; color: var(--day9); flex-shrink: 0; margin-top: 2px; }
+
+  .concept { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 16px; }
+  .concept-head { display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: background 0.2s; }
+  .concept-head:hover { background: rgba(255,255,255,0.02); }
+  .concept-num { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; flex-shrink: 0; background: var(--day9-dim); color: var(--day9); }
+  .concept-head h3 { font-size: 16px; font-weight: 600; flex: 1; }
+  .chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; }
+  .concept.open .chevron { transform: rotate(180deg); }
+  .concept-body { display: none; padding: 20px 24px 24px; }
+  .concept.open .concept-body { display: block; }
+
+  .analogy { background: var(--surface); border-left: 3px solid var(--yellow); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin: 16px 0; font-size: 14px; }
+  .analogy strong.label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--yellow); margin-bottom: 10px; }
+
+  .code-wrap { background: #0a0c11; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 14px 0; }
+  .code-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .code-bar .filename { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .code-bar .lang { font-family: var(--mono); font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.1em; }
+  pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.65; padding: 18px 20px; overflow-x: auto; color: #c9d1e8; tab-size: 4; white-space: pre; }
+  .cm { color: #5c6680; } .ck { color: var(--day9); } .cs { color: #86e1a0; } .cn { color: var(--yellow); } .cf { color: var(--cyan); } .cp { color: var(--orange); }
+
+  /* IO vs CPU grid */
+  .io-cpu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+  @media(max-width:600px) { .io-cpu-grid { grid-template-columns: 1fr; } }
+  .io-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+  .io-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .io-card ul { list-style: none; padding: 0; }
+  .io-card li { font-size: 13px; color: var(--muted); margin-bottom: 5px; padding-left: 0; }
+  .io-card.io-bound { border-color: rgba(16,185,129,0.3); }
+  .io-card.io-bound h4 { color: var(--day9); }
+  .io-card.cpu-bound { border-color: rgba(255,77,106,0.3); }
+  .io-card.cpu-bound h4 { color: var(--red); }
+
+  /* Thread pool vs true async diagram */
+  .async-diagram { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin: 18px 0; }
+  .async-diagram-title { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 18px; }
+  .async-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media(max-width:600px) { .async-cols { grid-template-columns: 1fr; } }
+  .async-col h4 { font-family: var(--mono); font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+  .async-col.thread h4 { color: var(--orange); }
+  .async-col.kernel h4 { color: var(--day9); }
+  .thread-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  .thread-label { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 70px; flex-shrink: 0; padding-top: 4px; }
+  .thread-bar { flex: 1; height: 24px; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-family: var(--mono); font-size: 10px; font-weight: 600; }
+  .thread-bar.blocked { background: rgba(255,107,53,0.15); color: var(--orange); border: 1px solid rgba(255,107,53,0.3); }
+  .thread-bar.free { background: var(--day9-dim); color: var(--day9); border: 1px solid rgba(16,185,129,0.3); }
+  .thread-bar.kernel { background: rgba(167,139,250,0.1); color: var(--purple); border: 1px solid rgba(167,139,250,0.2); font-size: 9px; }
+  .cost-badge { margin-top: 12px; padding: 10px 14px; border-radius: var(--radius); font-family: var(--mono); font-size: 12px; }
+  .cost-badge.expensive { background: rgba(255,77,106,0.1); border: 1px solid rgba(255,77,106,0.2); color: var(--red); }
+  .cost-badge.cheap { background: var(--day9-dim); border: 1px solid rgba(16,185,129,0.2); color: var(--day9); }
+
+  /* scale comparison */
+  .scale-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .scale-table th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-align: left; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .scale-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .scale-table tr:last-child td { border-bottom: none; }
+  .scale-table td:first-child { font-family: var(--mono); font-size: 12px; color: var(--day9); }
+
+  /* benchmark vis */
+  .benchmark-vis { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin: 18px 0; }
+  .bm-title { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 18px; }
+  .bm-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; font-family: var(--mono); font-size: 12px; }
+  .bm-label { color: var(--muted); width: 90px; flex-shrink: 0; }
+  .bm-bar { height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 11px; font-weight: 700; }
+  .bm-bar.seq { background: rgba(255,77,106,0.15); color: var(--red); border: 1px solid rgba(255,77,106,0.3); width: 100%; }
+  .bm-bar.par { background: var(--day9-dim); color: var(--day9); border: 1px solid rgba(16,185,129,0.3); width: 44%; }
+  .bm-note { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 10px; }
+
+  /* deep dive banners */
+  .insight-card { border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 16px; background: var(--card); border: 1px solid var(--border); }
+  .insight-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: background 0.2s; }
+  .insight-head:hover { background: rgba(255,255,255,0.02); }
+  .insight-tag { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 4px; flex-shrink: 0; }
+  .insight-tag.dd { background: rgba(16,185,129,0.15); color: var(--day9); }
+  .insight-tag.os { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .insight-head h3 { font-size: 15px; font-weight: 600; flex: 1; }
+  .insight-body { display: none; padding: 20px 24px 24px; }
+  .insight-card.open .insight-body { display: block; }
+  .insight-card.open .chevron { transform: rotate(180deg); }
+
+  .os-diagram { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin: 16px 0; font-family: var(--mono); font-size: 12px; }
+  .os-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .os-label { color: var(--muted); font-size: 11px; width: 80px; flex-shrink: 0; }
+  .os-pill { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .os-pill.fd { background: var(--day9-dim); color: var(--day9); }
+  .os-pill.thread { background: rgba(255,107,53,0.12); color: var(--orange); }
+
+  .callout { border-radius: var(--radius); padding: 16px 20px; margin: 14px 0; font-size: 14px; }
+  .callout.info { background: var(--day9-dim); border: 1px solid rgba(16,185,129,0.3); color: #a7f3d0; }
+  .callout.warn { background: rgba(255,209,102,0.1); border: 1px solid rgba(255,209,102,0.3); color: var(--yellow); }
+  .callout strong { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; display: block; margin-bottom: 6px; }
+
+  .tabs { margin-bottom: 28px; }
+  .tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 22px; overflow-x: auto; }
+  .tab-btn { font-family: var(--sans); font-size: 13px; font-weight: 500; padding: 10px 18px; background: none; border: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s; white-space: nowrap; margin-bottom: -1px; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--day9); border-bottom-color: var(--day9); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .terminal { background: #060708; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 16px 0; }
+  .terminal-bar { display: flex; gap: 6px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f57; } .terminal-dot.yellow { background: #febc2e; } .terminal-dot.green { background: #28c840; }
+  .terminal pre { color: #8fdb9a; font-size: 12px; padding: 16px 20px; }
+
+  .qa-list { display: flex; flex-direction: column; gap: 10px; }
+  .qa-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .qa-q { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px; cursor: pointer; user-select: none; transition: background 0.2s; }
+  .qa-q:hover { background: rgba(255,255,255,0.02); }
+  .qa-num { font-family: var(--mono); font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 2px; padding: 2px 8px; border-radius: 4px; background: var(--day9-dim); color: var(--day9); }
+  .qa-qtext { font-size: 14px; font-weight: 500; flex: 1; }
+  .qa-chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; margin-left: auto; flex-shrink: 0; }
+  .qa-item.open .qa-chevron { transform: rotate(180deg); }
+  .qa-a { display: none; padding: 14px 20px 16px 52px; font-size: 14px; color: #b0bbd4; line-height: 1.7; border-top: 1px solid var(--border); }
+  .qa-item.open .qa-a { display: block; }
+
+  .checklist { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+  .checklist h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 16px; }
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media(max-width:600px) { .check-grid { grid-template-columns: 1fr; } }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; padding: 6px 0; transition: color 0.2s; }
+  .check-item.checked { color: var(--text); }
+  .check-box { width: 16px; height: 16px; border: 1px solid var(--faint); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; transition: background 0.2s, border-color 0.2s; font-size: 10px; }
+  .check-item.checked .check-box { background: var(--day9); border-color: var(--day9); color: #000; }
+
+  .yt-links { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+  .yt-link { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; text-decoration: none; font-size: 13px; color: var(--text); transition: border-color 0.2s, background 0.2s; }
+  .yt-link:hover { border-color: var(--day9); background: var(--day9-dim); }
+  .yt-icon { color: var(--red, #ff4d6a); font-size: 15px; }
+
+  /* interview one-liner callout */
+  .interview-line { background: rgba(16,185,129,0.07); border: 1px solid rgba(16,185,129,0.2); border-radius: var(--radius); padding: 16px 20px; margin: 16px 0; font-size: 14px; font-style: italic; color: #a7f3d0; }
+  .interview-line strong { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--day9); display: block; margin-bottom: 8px; font-style: normal; }
+
+  code { font-family: var(--mono); font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; color: var(--day9); }
+  p { margin-bottom: 12px; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; font-size: 14px; }
+  strong { color: var(--text); font-weight: 600; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">⬡ <span>Stock</span>Agent</div>
+  <div class="nav-links">
+    <a href="#concepts" class="d9">Concepts</a>
+    <a href="#code" class="d9">Code</a>
+    <a href="#deep" class="d9">Deep Dives</a>
+    <a href="#interview" class="d9">Interview</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">
+    <span class="dot"></span>
+    LangGraph Agent Series · Day 9
+  </div>
+  <h1>
+    <span class="accent">Async</span> Conversion<br/>
+    + Concurrent Agent Execution
+  </h1>
+  <p class="hero-sub">
+    Stop your agents from waiting around doing nothing. Convert to async,
+    run Price, News, and Risk agents in parallel, and measure the real speedup.
+  </p>
+
+  <div class="speedup-vis">
+    <div class="speed-box seq">
+      <span class="s-num">9.4s</span>
+      <span class="s-label">Sequential</span>
+    </div>
+    <div class="speed-arrow">→</div>
+    <div class="speed-box par">
+      <span class="s-num">4.2s</span>
+      <span class="s-label">Parallel (async)</span>
+    </div>
+    <div class="speed-arrow">→</div>
+    <div class="speed-box par" style="min-width:100px;">
+      <span class="s-num">2.25×</span>
+      <span class="s-label">Speedup</span>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+
+  <div class="goal-card">
+    <h3>🎯 BY END OF TODAY</h3>
+    <ul class="goal-list">
+      <li>Understand <code>async</code>/<code>await</code> in Python — what problem it actually solves</li>
+      <li>Understand the difference between I/O-bound and CPU-bound work</li>
+      <li>Convert your agent functions to truly async</li>
+      <li>Run Price, News, and Risk agents in parallel using <code>asyncio.gather</code></li>
+      <li>Measure the real speed difference — sequential vs concurrent</li>
+    </ul>
+  </div>
+
+  <!-- CONCEPTS -->
+  <div class="section" id="concepts">
+    <div class="section-label">
+      <span class="tag">CONCEPTS</span>
+      <h2>Core Ideas — Day 9</h2>
+    </div>
+
+    <!-- C01 -->
+    <div class="concept open">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C01</span>
+        <h3>What Problem Does Async Actually Solve?</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — ORDERING AT 3 FOOD STALLS AT A FESTIVAL</strong>
+          <strong>Synchronous (what you have now):</strong> Walk to Stall A → order → WAIT 5 min standing there → get food. Walk to Stall B → WAIT 4 min. Walk to Stall C → WAIT 3 min. Total: 5+4+3 = 12 minutes.<br/><br/>
+          <strong>Async:</strong> Walk to Stall A → place order → they say "5 min, we'll call you". WHILE WAITING → walk to Stall B → place order → "4 min". Walk to Stall C → "3 min". Collect each as ready. Total: max(5,4,3) = 5 minutes.<br/><br/>
+          <strong>You're not cooking faster. You're just not standing around uselessly waiting.</strong>
+        </div>
+
+        <p>While your code waits on a network response (yFinance, Tavily, Groq), it can let other waiting tasks proceed instead of blocking everything. That's the entire idea behind <code>async</code>/<code>await</code>.</p>
+      </div>
+    </div>
+
+    <!-- C02 -->
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C02</span>
+        <h3>I/O-Bound vs CPU-Bound Work</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — WAITING FOR WHATSAPP vs DOING MENTAL MATH</strong>
+          I/O-bound = waiting on something external (WhatsApp reply) — your brain is basically idle.<br/>
+          CPU-bound = your own brain actually computing (mental arithmetic) — your brain is genuinely busy.
+        </div>
+
+        <div class="io-cpu-grid">
+          <div class="io-card io-bound">
+            <h4>✅ I/O-Bound — async helps here</h4>
+            <ul>
+              <li>→ Waiting for yFinance to respond</li>
+              <li>→ Waiting for Tavily search results</li>
+              <li>→ Waiting for Groq LLM to generate</li>
+              <li>→ Your CPU is basically idle, just waiting</li>
+            </ul>
+          </div>
+          <div class="io-card cpu-bound">
+            <h4>❌ CPU-Bound — async does NOT help</h4>
+            <ul>
+              <li>→ np.std(daily_returns) — pure math</li>
+              <li>→ drawdown_series.cummax() — pure math</li>
+              <li>→ json.dumps(report_dict) — string processing</li>
+              <li>→ CPU is actually busy doing work</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout warn">
+          <strong>IMPORTANT INTERVIEW NUANCE</strong>
+          Async isn't a magic speed button for everything — it specifically helps when your code spends time <em>waiting</em> rather than <em>computing</em>. The numpy calculations in your Risk Agent run at the same speed whether you're in an async function or not.
+        </div>
+      </div>
+    </div>
+
+    <!-- C03 -->
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C03</span>
+        <h3>async/await Syntax, Explained Simply</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — "I'M GOING TO WAIT IN THE QUEUE NOW — FEEL FREE TO HELP SOMEONE ELSE"</strong>
+          <code>await</code> is exactly that: "pause me here, let other tasks run, resume me when this network call finishes."
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">sync_vs_async.py</span><span class="lang">python</span></div>
+          <pre><span class="cm"># Regular (synchronous) function</span>
+<span class="ck">def</span> <span class="cf">fetch_price</span>(ticker):
+    response = requests.<span class="cf">get</span>(url)   <span class="cm"># ← BLOCKS here, nothing else can happen</span>
+    <span class="ck">return</span> response.<span class="cf">json</span>()
+
+<span class="cm"># Async function</span>
+<span class="ck">async def</span> <span class="cf">fetch_price</span>(ticker):
+    response = <span class="ck">await</span> client.<span class="cf">get</span>(url)   <span class="cm"># ← "pause me here, let other</span>
+                                          <span class="cm">#    tasks run, resume when done"</span>
+    <span class="ck">return</span> response.<span class="cf">json</span>()</pre>
+        </div>
+
+        <p><strong>The three keywords you need:</strong></p>
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">keywords.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">async def</span> <span class="cf">my_function</span>():
+    <span class="cm"># 'async def' = "this function CAN be paused and resumed"</span>
+    <span class="cm"># It does NOT run in the background automatically</span>
+
+    result = <span class="ck">await</span> <span class="cf">some_async_operation</span>()
+    <span class="cm"># 'await' = "pause here, let event loop run other tasks meanwhile"</span>
+
+    <span class="ck">return</span> result
+
+<span class="cm"># To actually RUN an async function:</span>
+<span class="cf">my_function</span>()              <span class="cm"># ❌ Just creates a coroutine object, doesn't run!</span>
+<span class="ck">await</span> <span class="cf">my_function</span>()       <span class="cm"># ✅ Runs it (from inside another async function)</span>
+asyncio.<span class="cf">run</span>(<span class="cf">my_function</span>()) <span class="cm"># ✅ Runs it from regular (sync) code</span>
+
+<span class="cm"># Common beginner mistake:</span>
+result = <span class="cf">get_data</span>()         <span class="cm"># ❌ Prints: &lt;coroutine object...&gt; NOT the value!</span>
+result = <span class="ck">await</span> <span class="cf">get_data</span>()  <span class="cm"># ✅ Correct</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- C04 -->
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C04</span>
+        <h3>asyncio.gather() — Running Things Concurrently</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — BACK TO THE 3 FOOD STALLS</strong>
+          <code>asyncio.gather()</code> is literally you saying: "Place all 3 orders now, and tell me once ALL of them are ready."
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">gather_example.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> asyncio
+
+<span class="ck">async def</span> <span class="cf">stall_a</span>():
+    <span class="ck">await</span> asyncio.<span class="cf">sleep</span>(<span class="cn">5</span>)
+    <span class="ck">return</span> <span class="cs">"Burger"</span>
+
+<span class="ck">async def</span> <span class="cf">stall_b</span>():
+    <span class="ck">await</span> asyncio.<span class="cf">sleep</span>(<span class="cn">4</span>)
+    <span class="ck">return</span> <span class="cs">"Pizza"</span>
+
+<span class="ck">async def</span> <span class="cf">stall_c</span>():
+    <span class="ck">await</span> asyncio.<span class="cf">sleep</span>(<span class="cn">3</span>)
+    <span class="ck">return</span> <span class="cs">"Tacos"</span>
+
+<span class="ck">async def</span> <span class="cf">main</span>():
+    <span class="cm"># Sequential — adds up: 5 + 4 + 3 = 12 seconds</span>
+    burger = <span class="ck">await</span> <span class="cf">stall_a</span>()
+    pizza  = <span class="ck">await</span> <span class="cf">stall_b</span>()
+    tacos  = <span class="ck">await</span> <span class="cf">stall_c</span>()
+
+    <span class="cm"># Concurrent — takes max(5, 4, 3) = 5 seconds</span>
+    burger, pizza, tacos = <span class="ck">await</span> asyncio.<span class="cf">gather</span>(
+        <span class="cf">stall_a</span>(),
+        <span class="cf">stall_b</span>(),
+        <span class="cf">stall_c</span>()
+    )
+    <span class="cm"># gather() starts all 3, waits for ALL to finish,</span>
+    <span class="cm"># returns results in the same order they were passed in</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- C05 -->
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C05</span>
+        <h3>Connecting This to Day 5's Fan-Out / Fan-In</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <p>Remember Day 5, where we talked conceptually about fan-out/fan-in in LangGraph using multiple edges from the same node? Today's <code>asyncio.gather()</code> is the <strong>actual underlying mechanism</strong> that makes that work.</p>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">connection.txt</span><span class="lang">text</span></div>
+          <pre>LangGraph fan-out (Day 5 concept):
+  Orchestrator → [Price, News, Risk] (parallel edges)
+
+What's REALLY happening under the hood:
+  LangGraph uses asyncio.gather() internally to run all node
+  coroutines concurrently, IF those nodes are 'async def' functions.
+
+If your nodes are regular 'def' functions (synchronous),
+LangGraph runs them in a thread pool — some concurrency,
+but not as efficient as true async for I/O-bound work.
+
+Today's work = giving LangGraph truly async nodes so the
+fan-out pattern from Day 5 achieves maximum efficiency.</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CODE -->
+  <div class="section" id="code">
+    <div class="section-label">
+      <span class="tag">CODE</span>
+      <h2>Convert Agents to Async + Run in Parallel</h2>
+    </div>
+
+    <div class="callout info">
+      <strong>THE REAL CONSTRAINT — SYNC LIBRARIES</strong>
+      yfinance and the Tavily Python SDK are synchronous libraries. "Converting to async" means running these sync calls inside a thread pool controlled by async code, so they don't block the main event loop. The actual yfinance call still blocks a thread — but doesn't block the event loop from starting other tasks.
+    </div>
+
+    <div class="tabs">
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab(this,'t-utils')">async_utils.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-price')">price_agent.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-news')">news_agent.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-risk')">risk_agent.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-graph')">graph_parallel.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-bench')">benchmark.py</button>
+      </div>
+
+      <div id="t-utils" class="tab-content active">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">core/async_utils.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> asyncio
+<span class="ck">from</span> functools <span class="ck">import</span> partial
+
+<span class="ck">async def</span> <span class="cf">run_sync_in_thread</span>(func, *args, **kwargs):
+    <span class="cs">"""
+    Runs a synchronous (blocking) function inside a thread pool,
+    so it doesn't block the asyncio event loop.
+
+    This is the bridge between sync libraries (yfinance, tavily)
+    and our async agent functions.
+    """</span>
+    loop = asyncio.<span class="cf">get_event_loop</span>()
+    <span class="cm"># get_event_loop() gets the currently running event loop</span>
+
+    func_with_args = <span class="cf">partial</span>(func, *args, **kwargs)
+    <span class="cm"># partial() pre-fills the function's arguments so we can pass</span>
+    <span class="cm"># it to run_in_executor without arguments</span>
+
+    <span class="ck">return</span> <span class="ck">await</span> loop.<span class="cf">run_in_executor</span>(<span class="ck">None</span>, func_with_args)
+    <span class="cm"># run_in_executor(None, ...) = "run this in the default thread pool"</span>
+    <span class="cm"># 'await' here pauses THIS coroutine, but other coroutines</span>
+    <span class="cm"># can keep running while this thread pool work happens</span></pre>
+        </div>
+      </div>
+
+      <div id="t-price" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">agents/price_agent.py — async version</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> yfinance <span class="ck">as</span> yf
+<span class="ck">from</span> core.state <span class="ck">import</span> StockAnalysisState
+<span class="ck">from</span> core.async_utils <span class="ck">import</span> run_sync_in_thread
+<span class="ck">from</span> memory.cache <span class="ck">import</span> get_cached, set_cached
+
+<span class="ck">def</span> <span class="cf">_fetch_price_sync</span>(ticker: str) -> dict:
+    <span class="cs">"""
+    The actual blocking yfinance logic — UNCHANGED from before.
+    Stays a regular function — yfinance itself can't be async.
+    """</span>
+    stock = yf.<span class="cf">Ticker</span>(ticker)
+    hist  = stock.<span class="cf">history</span>(<span class="cp">period</span>=<span class="cs">"1mo"</span>, <span class="cp">interval</span>=<span class="cs">"1d"</span>)
+
+    <span class="ck">if</span> hist.<span class="cf">empty</span>:
+        <span class="ck">raise</span> <span class="cf">ValueError</span>(<span class="cs">f"No price data for {ticker}"</span>)
+
+    current_price    = <span class="cf">round</span>(<span class="cf">float</span>(hist[<span class="cs">"Close"</span>].<span class="cf">iloc</span>[-<span class="cn">1</span>]), <span class="cn">2</span>)
+    prev_price       = <span class="cf">float</span>(hist[<span class="cs">"Close"</span>].<span class="cf">iloc</span>[-<span class="cn">2</span>])
+    price_change_pct = <span class="cf">round</span>(((current_price - prev_price) / prev_price) * <span class="cn">100</span>, <span class="cn">2</span>)
+
+    closes   = hist[<span class="cs">"Close"</span>]
+    delta    = closes.<span class="cf">diff</span>()
+    gain     = delta.<span class="cf">clip</span>(<span class="cp">lower</span>=<span class="cn">0</span>)
+    loss     = -delta.<span class="cf">clip</span>(<span class="cp">upper</span>=<span class="cn">0</span>)
+    avg_gain = gain.<span class="cf">rolling</span>(<span class="cp">window</span>=<span class="cn">14</span>).<span class="cf">mean</span>().<span class="cf">iloc</span>[-<span class="cn">1</span>]
+    avg_loss = loss.<span class="cf">rolling</span>(<span class="cp">window</span>=<span class="cn">14</span>).<span class="cf">mean</span>().<span class="cf">iloc</span>[-<span class="cn">1</span>]
+    rsi = <span class="cn">100.0</span> <span class="ck">if</span> avg_loss == <span class="cn">0</span> <span class="ck">else</span> <span class="cf">round</span>(<span class="cn">100</span> - (<span class="cn">100</span> / (<span class="cn">1</span> + avg_gain/avg_loss)), <span class="cn">2</span>)
+
+    <span class="ck">return</span> {<span class="cs">"current_price"</span>: current_price, <span class="cs">"price_change_pct"</span>: price_change_pct, <span class="cs">"rsi"</span>: rsi}
+
+
+<span class="ck">async def</span> <span class="cf">price_agent_node</span>(state: StockAnalysisState) -> dict:
+    <span class="cm"># ↑ NOTICE: 'async def' instead of just 'def'</span>
+    ticker = state[<span class="cs">"ticker"</span>]
+    <span class="cf">print</span>(<span class="cs">f"📈 Price Agent: Fetching {ticker}..."</span>)
+
+    cached_data = <span class="cf">get_cached</span>(<span class="cs">"price"</span>, ticker)
+    <span class="ck">if</span> cached_data:
+        <span class="cf">print</span>(<span class="cs">f"⚡ Cache HIT for {ticker}"</span>)
+        <span class="ck">return</span> {**cached_data, <span class="cs">"errors"</span>: []}
+
+    <span class="ck">try</span>:
+        <span class="cm"># await the thread-pool-wrapped sync call</span>
+        <span class="cm"># While yfinance waits in its thread, the event loop</span>
+        <span class="cm"># is FREE to run News Agent or Risk Agent</span>
+        result = <span class="ck">await</span> <span class="cf">run_sync_in_thread</span>(_fetch_price_sync, ticker)
+        <span class="cf">set_cached</span>(<span class="cs">"price"</span>, ticker, result)
+        <span class="ck">return</span> {**result, <span class="cs">"errors"</span>: []}
+
+    <span class="ck">except</span> Exception <span class="ck">as</span> e:
+        <span class="ck">return</span> {<span class="cs">"current_price"</span>: <span class="ck">None</span>, <span class="cs">"price_change_pct"</span>: <span class="ck">None</span>,
+                <span class="cs">"rsi"</span>: <span class="ck">None</span>, <span class="cs">"errors"</span>: [<span class="cs">f"Price Agent failed: {str(e)}"</span>]}</pre>
+        </div>
+      </div>
+
+      <div id="t-news" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">agents/news_agent.py — async version (key changes)</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> core.async_utils <span class="ck">import</span> run_sync_in_thread
+
+<span class="ck">def</span> <span class="cf">_fetch_news_sync</span>(ticker: str) -> list:
+    <span class="cs">"""Blocking Tavily call — wrapped separately from sentiment scoring"""</span>
+    results = tavily_client.<span class="cf">search</span>(
+        <span class="cp">query</span>=<span class="cs">f"{ticker} stock news analysis today"</span>,
+        <span class="cp">max_results</span>=<span class="cn">5</span>
+    )
+    <span class="ck">return</span> results.<span class="cf">get</span>(<span class="cs">"results"</span>, [])
+
+
+<span class="ck">async def</span> <span class="cf">news_agent_node</span>(state: StockAnalysisState) -> dict:
+    ticker = state[<span class="cs">"ticker"</span>]
+    <span class="cf">print</span>(<span class="cs">f"📰 News Agent: Fetching news for {ticker}..."</span>)
+
+    <span class="ck">try</span>:
+        <span class="cm"># Tavily call → runs in thread pool, doesn't block event loop</span>
+        articles = <span class="ck">await</span> <span class="cf">run_sync_in_thread</span>(_fetch_news_sync, ticker)
+
+        <span class="ck">if not</span> articles:
+            <span class="ck">return</span> {<span class="cs">"news_headlines"</span>: [], <span class="cs">"sentiment_score"</span>: <span class="cn">0.0</span>, <span class="cs">"errors"</span>: []}
+
+        headlines, contents = [], []
+        <span class="ck">for</span> article <span class="ck">in</span> articles:
+            title   = article.<span class="cf">get</span>(<span class="cs">"title"</span>, <span class="cs">""</span>)
+            content = article.<span class="cf">get</span>(<span class="cs">"content"</span>, <span class="cs">""</span>)[:<span class="cn">200</span>]
+            <span class="ck">if</span> title:
+                headlines.<span class="cf">append</span>(title)
+                contents.<span class="cf">append</span>(<span class="cs">f"{title}: {content}"</span>)
+
+        sentiment_prompt = <span class="cs">f"Analyze {ticker} sentiment:\n{chr(10).join(contents)}\nSENTIMENT_SCORE: [decimal -1.0 to 1.0]"</span>
+
+        <span class="cm"># llm.invoke() is also sync — OR use llm.ainvoke() directly (true async!)</span>
+        response = <span class="ck">await</span> <span class="cf">run_sync_in_thread</span>(llm.invoke, sentiment_prompt)
+        <span class="cm"># Better option: response = await llm.ainvoke(sentiment_prompt)</span>
+        <span class="cm"># langchain-groq supports true async — no thread pool needed for LLM calls</span>
+
+        sentiment_score = <span class="cn">0.0</span>
+        <span class="ck">for</span> line <span class="ck">in</span> response.content.<span class="cf">strip</span>().<span class="cf">split</span>(<span class="cs">"\n"</span>):
+            <span class="ck">if</span> line.<span class="cf">startswith</span>(<span class="cs">"SENTIMENT_SCORE:"</span>):
+                sentiment_score = <span class="cf">float</span>(line.<span class="cf">split</span>(<span class="cs">":"</span>)[<span class="cn">1</span>].<span class="cf">strip</span>())
+
+        <span class="ck">return</span> {<span class="cs">"news_headlines"</span>: headlines, <span class="cs">"sentiment_score"</span>: sentiment_score, <span class="cs">"errors"</span>: []}
+
+    <span class="ck">except</span> Exception <span class="ck">as</span> e:
+        <span class="ck">return</span> {<span class="cs">"news_headlines"</span>: [], <span class="cs">"sentiment_score"</span>: <span class="cn">0.0</span>,
+                <span class="cs">"errors"</span>: [<span class="cs">f"News Agent failed: {str(e)}"</span>]}</pre>
+        </div>
+      </div>
+
+      <div id="t-risk" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">agents/risk_agent.py — async version (pattern)</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> core.async_utils <span class="ck">import</span> run_sync_in_thread
+
+<span class="ck">def</span> <span class="cf">_calculate_risk_sync</span>(ticker: str) -> dict:
+    <span class="cs">"""All the numpy/yfinance risk math — unchanged blocking logic from Day 4"""</span>
+    stock = yf.<span class="cf">Ticker</span>(ticker)
+    hist  = stock.<span class="cf">history</span>(<span class="cp">period</span>=<span class="cs">"6mo"</span>, <span class="cp">interval</span>=<span class="cs">"1d"</span>)
+
+    <span class="cm"># ... exact same volatility/drawdown/beta calculation as Day 4 ...</span>
+    <span class="cm"># (numpy operations are CPU-bound — async doesn't speed these up anyway)</span>
+
+    <span class="ck">return</span> {<span class="cs">"volatility"</span>: volatility_annual, <span class="cs">"risk_level"</span>: risk_level}
+
+
+<span class="ck">async def</span> <span class="cf">risk_agent_node</span>(state: StockAnalysisState) -> dict:
+    ticker = state[<span class="cs">"ticker"</span>]
+    <span class="cf">print</span>(<span class="cs">f"⚠️  Risk Agent: Calculating risk for {ticker}..."</span>)
+
+    <span class="ck">try</span>:
+        <span class="cm"># The yfinance network calls run in a thread pool</span>
+        <span class="cm"># While they wait, the event loop handles other agents</span>
+        result = <span class="ck">await</span> <span class="cf">run_sync_in_thread</span>(_calculate_risk_sync, ticker)
+        <span class="ck">return</span> {**result, <span class="cs">"errors"</span>: []}
+
+    <span class="ck">except</span> Exception <span class="ck">as</span> e:
+        <span class="ck">return</span> {<span class="cs">"volatility"</span>: <span class="ck">None</span>, <span class="cs">"risk_level"</span>: <span class="cs">"MEDIUM"</span>,
+                <span class="cs">"errors"</span>: [<span class="cs">f"Risk Agent failed: {str(e)}"</span>]}</pre>
+        </div>
+      </div>
+
+      <div id="t-graph" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">agents/graph_parallel.py — new file</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> langgraph.graph <span class="ck">import</span> StateGraph, END
+<span class="ck">from</span> core.state <span class="ck">import</span> StockAnalysisState
+<span class="ck">from</span> agents.orchestrator  <span class="ck">import</span> orchestrator_node
+<span class="ck">from</span> agents.price_agent   <span class="ck">import</span> price_agent_node
+<span class="ck">from</span> agents.news_agent    <span class="ck">import</span> news_agent_node
+<span class="ck">from</span> agents.risk_agent    <span class="ck">import</span> risk_agent_node
+<span class="ck">from</span> agents.analyst_agent <span class="ck">import</span> analyst_agent_node
+<span class="ck">from</span> agents.report_agent  <span class="ck">import</span> report_agent_node
+
+<span class="ck">def</span> <span class="cf">build_parallel_graph</span>():
+    graph = <span class="cf">StateGraph</span>(StockAnalysisState)
+
+    graph.<span class="cf">add_node</span>(<span class="cs">"orchestrator"</span>,  orchestrator_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"price_agent"</span>,   price_agent_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"news_agent"</span>,    news_agent_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"risk_agent"</span>,    risk_agent_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"analyst_agent"</span>, analyst_agent_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"report_agent"</span>,  report_agent_node)
+
+    graph.<span class="cf">set_entry_point</span>(<span class="cs">"orchestrator"</span>)
+
+    <span class="cm"># ── FAN-OUT: orchestrator triggers all 3 simultaneously ──</span>
+    graph.<span class="cf">add_edge</span>(<span class="cs">"orchestrator"</span>, <span class="cs">"price_agent"</span>)   <span class="cm"># ← same source</span>
+    graph.<span class="cf">add_edge</span>(<span class="cs">"orchestrator"</span>, <span class="cs">"news_agent"</span>)    <span class="cm"># ← same source</span>
+    graph.<span class="cf">add_edge</span>(<span class="cs">"orchestrator"</span>, <span class="cs">"risk_agent"</span>)    <span class="cm"># ← same source</span>
+    <span class="cm"># Because these are now 'async def', LangGraph runs them</span>
+    <span class="cm"># CONCURRENTLY using its internal asyncio.gather() mechanism</span>
+
+    <span class="cm"># ── FAN-IN: analyst waits for ALL 3 to complete ──────────</span>
+    graph.<span class="cf">add_edge</span>(<span class="cs">"price_agent"</span>, <span class="cs">"analyst_agent"</span>)  <span class="cm"># ← same dest</span>
+    graph.<span class="cf">add_edge</span>(<span class="cs">"news_agent"</span>,  <span class="cs">"analyst_agent"</span>)  <span class="cm"># ← same dest</span>
+    graph.<span class="cf">add_edge</span>(<span class="cs">"risk_agent"</span>,  <span class="cs">"analyst_agent"</span>)  <span class="cm"># ← same dest</span>
+    <span class="cm"># LangGraph waits for all 3, merges their State updates,</span>
+    <span class="cm"># THEN runs analyst_agent with the fully populated State</span>
+
+    graph.<span class="cf">add_edge</span>(<span class="cs">"analyst_agent"</span>, <span class="cs">"report_agent"</span>)
+    graph.<span class="cf">add_edge</span>(<span class="cs">"report_agent"</span>,  END)
+
+    <span class="ck">return</span> graph.<span class="cf">compile</span>()</pre>
+        </div>
+      </div>
+
+      <div id="t-bench" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">run_day9_benchmark.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> asyncio
+<span class="ck">import</span> time
+<span class="ck">from</span> agents.graph          <span class="ck">import</span> build_graph              <span class="cm"># sequential</span>
+<span class="ck">from</span> agents.graph_parallel <span class="ck">import</span> build_parallel_graph    <span class="cm"># NEW parallel</span>
+
+<span class="ck">def</span> <span class="cf">make_initial_state</span>(ticker):
+    <span class="ck">return</span> {
+        <span class="cs">"ticker"</span>: ticker, <span class="cs">"query_type"</span>: <span class="cs">"full"</span>,
+        <span class="cm"># ... all other None fields ...</span>
+        <span class="cs">"errors"</span>: [], <span class="cs">"retry_count"</span>: <span class="cn">0</span>
+    }
+
+<span class="ck">async def</span> <span class="cf">benchmark</span>():
+    ticker = <span class="cs">"AAPL"</span>
+
+    <span class="cm"># ── Sequential version ────────────────────────────────</span>
+    seq_graph = <span class="cf">build_graph</span>()
+    start = time.<span class="cf">time</span>()
+    <span class="ck">await</span> seq_graph.<span class="cf">ainvoke</span>(<span class="cf">make_initial_state</span>(ticker))
+    <span class="cm"># .ainvoke() = async version of .invoke()</span>
+    <span class="cm"># Required now that our nodes are async functions</span>
+    seq_time = time.<span class="cf">time</span>() - start
+
+    <span class="cm"># ── Parallel version ──────────────────────────────────</span>
+    par_graph = <span class="cf">build_parallel_graph</span>()
+    start = time.<span class="cf">time</span>()
+    <span class="ck">await</span> par_graph.<span class="cf">ainvoke</span>(<span class="cf">make_initial_state</span>(ticker))
+    par_time = time.<span class="cf">time</span>() - start
+
+    <span class="cf">print</span>(<span class="cs">f"\n{'='*50}"</span>)
+    <span class="cf">print</span>(<span class="cs">f"⏱️  BENCHMARK RESULTS for {ticker}"</span>)
+    <span class="cf">print</span>(<span class="cs">f"{'='*50}"</span>)
+    <span class="cf">print</span>(<span class="cs">f"Sequential: {seq_time:.2f}s"</span>)
+    <span class="cf">print</span>(<span class="cs">f"Parallel:   {par_time:.2f}s"</span>)
+    <span class="cf">print</span>(<span class="cs">f"Speedup:    {seq_time/par_time:.2f}x faster"</span>)
+
+<span class="ck">if</span> __name__ == <span class="cs">"__main__"</span>:
+    asyncio.<span class="cf">run</span>(<span class="cf">benchmark</span>())
+    <span class="cm"># asyncio.run() starts the event loop and runs our async function</span></pre>
+        </div>
+
+        <div class="benchmark-vis">
+          <div class="bm-title">EXPECTED BENCHMARK RESULTS — AAPL</div>
+          <div class="bm-row">
+            <span class="bm-label">Sequential</span>
+            <div class="bm-bar seq">9.42s — Price(3s) + News(5s) + Risk(4s) + Analyst(2s)</div>
+          </div>
+          <div class="bm-row">
+            <span class="bm-label">Parallel</span>
+            <div class="bm-bar par">4.18s — max(3,5,4) + Analyst(2s)</div>
+          </div>
+          <div class="bm-note">⚡ 2.25× speedup — not a perfect 3× because Analyst + Report still run sequentially after fan-in</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEEP DIVES -->
+  <div class="section" id="deep">
+    <div class="section-label">
+      <span class="tag">DEEP DIVES</span>
+      <h2>Thread Pool vs True Async — OS Level</h2>
+    </div>
+
+    <div class="insight-card open">
+      <div class="insight-head" onclick="toggleInsight(this)">
+        <span class="insight-tag dd">DEEP DIVE</span>
+        <h3>What exactly changes between thread-pool async and true async?</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="insight-body">
+        <p>The physical network latency doesn't change — Yahoo Finance still takes the same 200ms to respond. What changes is <strong>what resource holds the wait</strong> and at what cost.</p>
+
+        <div class="async-diagram">
+          <div class="async-diagram-title">WHAT HOLDS THE WAIT — SIDE BY SIDE</div>
+          <div class="async-cols">
+            <div class="async-col thread">
+              <h4>⚡ Sync Wrapped in Thread Pool</h4>
+              <div class="thread-row">
+                <span class="thread-label">Main Loop</span>
+                <div class="thread-bar free" style="width:100%">free — doing other work</div>
+              </div>
+              <div class="thread-row">
+                <span class="thread-label">Thread A</span>
+                <div class="thread-bar blocked" style="width:100%">BLOCKED waiting… (Price)</div>
+              </div>
+              <div class="thread-row">
+                <span class="thread-label">Thread B</span>
+                <div class="thread-bar blocked" style="width:100%">BLOCKED waiting… (News)</div>
+              </div>
+              <div class="thread-row">
+                <span class="thread-label">Thread C</span>
+                <div class="thread-bar blocked" style="width:100%">BLOCKED waiting… (Risk)</div>
+              </div>
+              <div class="cost-badge expensive">3 OS threads: ~4MB × 3 = ~12MB RAM wasted</div>
+            </div>
+            <div class="async-col kernel">
+              <h4>✅ Truly Async (httpx + OS epoll)</h4>
+              <div class="thread-row">
+                <span class="thread-label">Main Loop</span>
+                <div class="thread-bar free" style="width:100%">free — doing other work</div>
+              </div>
+              <div class="thread-row">
+                <span class="thread-label">OS fd=5</span>
+                <div class="thread-bar kernel" style="width:100%">kernel watching socket (Price)</div>
+              </div>
+              <div class="thread-row">
+                <span class="thread-label">OS fd=6</span>
+                <div class="thread-bar kernel" style="width:100%">kernel watching socket (News)</div>
+              </div>
+              <div class="thread-row">
+                <span class="thread-label">OS fd=7</span>
+                <div class="thread-bar kernel" style="width:100%">kernel watching socket (Risk)</div>
+              </div>
+              <div class="cost-badge cheap">0 extra threads: 3 fd registrations = ~300 bytes</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight-card">
+      <div class="insight-head" onclick="toggleInsight(this)">
+        <span class="insight-tag os">OS LEVEL</span>
+        <h3>Step-by-step trace — what the OS actually does for each approach</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="insight-body">
+        <p><strong>Sync wrapped in thread pool — step by step:</strong></p>
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">thread_pool_trace.txt</span><span class="lang">text</span></div>
+          <pre>Step 1: Main event loop spawns OS Thread A, hands it yfinance call
+Step 2: Thread A opens TCP socket, sends HTTP request to Yahoo Finance
+Step 3: Yahoo Finance hasn't responded yet.
+        Thread A does this:
+          while True:
+              check socket → no data yet (frozen, doing nothing)
+              check socket → no data yet
+              ...
+        Thread A is 100% tied up, consuming ~4MB RAM, doing NOTHING
+Step 4: Yahoo Finance responds. Thread A wakes, reads data, returns.
+Step 5: Main event loop collects result from Thread A.</pre>
+        </div>
+
+        <p><strong>Truly async (httpx + epoll) — step by step:</strong></p>
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">true_async_trace.txt</span><span class="lang">text</span></div>
+          <pre>Step 1: Main event loop (ONLY THREAD!) calls httpx.
+        httpx opens TCP socket, sends HTTP request — same as before.
+Step 2: Yahoo Finance hasn't responded yet.
+        httpx tells the OS: "Register fd=5. Wake me when data arrives."
+        This is epoll (Linux) / kqueue (Mac) / IOCP (Windows).
+        NO thread is spawned. NO thread is blocked.
+        The OS kernel watches the socket at the hardware level.
+Step 3: Main event loop is FREE.
+        Same single thread now sends News request (fd=6 registered)
+        and Risk request (fd=7 registered).
+        Three requests in-flight on ONE thread.
+Step 4: OS fires: "fd=7 ready" (Risk arrived first)
+        Event loop resumes Risk Agent coroutine, processes result.
+Step 5: OS fires: "fd=5 ready" (Price arrived)
+        Event loop resumes Price Agent coroutine.
+Step 6: OS fires: "fd=6 ready" (News arrived last)
+        Event loop resumes News Agent coroutine.</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight-card">
+      <div class="insight-head" onclick="toggleInsight(this)">
+        <span class="insight-tag os">SCALING</span>
+        <h3>Why this matters — 3 users vs 500 users</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="insight-body">
+        <table class="scale-table">
+          <thead><tr><th>Scenario</th><th>Thread Pool</th><th>True Async</th></tr></thead>
+          <tbody>
+            <tr><td>1 waiting task</td><td>1 OS thread (~4MB RAM)</td><td>1 file descriptor (~100 bytes)</td></tr>
+            <tr><td>3 concurrent agents</td><td>3 OS threads (~12MB)</td><td>3 fd registrations (~300 bytes)</td></tr>
+            <tr><td>500 users × 3 agents</td><td>1500 OS threads (~6GB RAM)</td><td>1500 fd registrations (~150KB)</td></tr>
+            <tr><td>Scale limit</td><td>~10k threads (OS limit)</td><td>Hundreds of thousands of fd's</td></tr>
+          </tbody>
+        </table>
+
+        <div class="analogy">
+          <strong class="label">🌍 NUMBERS TICKET ANALOGY</strong>
+          <strong>Thread pool:</strong> 3 separate people each go stand in 3 separate queues. Works for 3 queues. Hire 1500 people for 1500 queues — gets expensive fast.<br/><br/>
+          <strong>True async:</strong> ONE person takes a numbered ticket at all 3 counters, then sits down and reads a book. When counter calls their number, they get up, get served, sit back down. One person can hold tickets at 1000 counters — "holding a ticket" costs almost nothing.
+        </div>
+
+        <div class="interview-line">
+          <strong>💡 THE ONE-SENTENCE INTERVIEW ANSWER</strong>
+          "Both free the main event loop during the wait — but sync-wrapped-as-async offloads the wait to an OS thread that sits blocked and consumes resources, while truly async registers the wait with the OS kernel via a file descriptor, which costs almost nothing and scales to thousands of concurrent operations on a single thread."
+        </div>
+      </div>
+    </div>
+
+    <div class="insight-card">
+      <div class="insight-head" onclick="toggleInsight(this)">
+        <span class="insight-tag dd">IMPROVEMENT</span>
+        <h3>Where you actually have a true-async option right now</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="insight-body">
+        <p>yfinance has no async alternative — thread pool wrapping is the only option. But <strong>langchain-groq supports true async natively</strong> — meaning you can swap thread-pool for real async for all LLM calls right now.</p>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">llm_async_upgrade.py</span><span class="lang">python</span></div>
+          <pre><span class="cm"># What we did (works, but uses a thread unnecessarily):</span>
+response = <span class="ck">await</span> <span class="cf">run_sync_in_thread</span>(llm.invoke, sentiment_prompt)
+
+<span class="cm"># Better — langchain-groq's true async path, no thread pool needed:</span>
+response = <span class="ck">await</span> llm.<span class="cf">ainvoke</span>(sentiment_prompt)
+<span class="cm"># 'ainvoke' = async invoke — uses an async HTTP client internally</span>
+<span class="cm"># Genuinely non-blocking on the main event loop</span>
+<span class="cm"># One less thread per LLM call — matters at scale</span>
+
+<span class="cm"># Apply this in: News Agent (sentiment), Analyst Agent, Report Agent</span>
+<span class="cm"># All three have multiple LLM calls that can benefit from this swap</span></pre>
+        </div>
+
+        <div class="callout info">
+          <strong>FOR YOUR PROJECT AT CURRENT SCALE</strong>
+          With only 3 concurrent agents, you genuinely won't notice the difference between thread-pool and true-async. But swapping <code>llm.invoke</code> for <code>llm.ainvoke</code> is a zero-effort improvement you can make right now — LangChain already supports it. Start there.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERVIEW QA -->
+  <div class="section" id="interview">
+    <div class="section-label">
+      <span class="tag">INTERVIEW</span>
+      <h2>Q&A — Day 9</h2>
+    </div>
+    <div class="qa-list">
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What problem does async/await actually solve, and what problem does it NOT solve?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Async solves the problem of wasted waiting time during I/O operations — while waiting for a network response from an external API, the program can work on other tasks instead of blocking. It does NOT make CPU-bound computations faster — calculating RSI or running numpy operations takes the same time whether you're in an async function or not, because the CPU still has to do the same amount of actual work.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Why can't you just call an async function directly like a normal function?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Calling an async function returns a coroutine object, not the result — it's like creating a recipe but not cooking it. You need 'await' to actually execute it and get the result, and await only works inside another async function. To run an async function from regular synchronous code, you need asyncio.run(), which starts the event loop that actually drives execution.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">yfinance and Tavily's Python SDK are synchronous libraries. How did you make your agents async despite this?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">I used asyncio's run_in_executor to run the blocking synchronous calls inside a thread pool, controlled by an async wrapper function. This means the actual yfinance call still blocks that one thread, but it doesn't block the main asyncio event loop — so other coroutines, like News Agent or Risk Agent's requests, can proceed concurrently while Price Agent's thread is waiting on Yahoo Finance's response.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Explain asyncio.gather() and how it connects to LangGraph's fan-out pattern from Day 5.</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">asyncio.gather() takes multiple coroutines, starts them all concurrently, and waits until every single one completes before returning their combined results. This is the actual underlying mechanism behind LangGraph's fan-out/fan-in pattern — when a node has multiple outgoing edges to async node functions, LangGraph's execution engine runs them concurrently using a gather-like mechanism rather than waiting for each one sequentially.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">In your benchmark, why wasn't the parallel version exactly 3× faster even though you parallelized 3 agents?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Three reasons: first, Analyst and Report agents still run sequentially after the fan-in completes, since they depend on all prior results. Second, there's overhead in spinning up async tasks and thread pool execution. Third, the three parallel agents don't take exactly equal time — overall speedup is bounded by the slowest one (News Agent at ~5s), not divided evenly by three, since the others finish early and just wait.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">When would you NOT want to convert a function to async?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">When the function is purely CPU-bound with no I/O waiting — like the RSI or volatility calculations using numpy — converting it to async adds complexity without any performance benefit, since there's no waiting period to exploit. Async is specifically valuable for I/O-bound code; forcing it onto CPU-bound code is over-engineering that makes the code harder to read for zero gain.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTube -->
+  <div class="section">
+    <div class="section-label">
+      <span class="tag">REFERENCES</span>
+      <h2>YouTube Resources</h2>
+    </div>
+    <div class="yt-links">
+      <a class="yt-link" href="https://www.youtube.com/watch?v=t5Bo1Je9EmE" target="_blank"><span class="yt-icon">▶</span> Async/Await in Python Explained</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=ftmdDlwMwwQ" target="_blank"><span class="yt-icon">▶</span> asyncio.gather Deep Dive</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=qAh5dDODJ5k" target="_blank"><span class="yt-icon">▶</span> Async vs Sync Performance</a>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div class="section">
+    <div class="checklist">
+      <h3>✅ DAY 9 CHECKLIST</h3>
+      <div class="check-grid">
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood async — eliminates wasted wait time during I/O</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood I/O-bound vs CPU-bound distinction</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood async/await syntax + "forgot to await" trap</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood asyncio.gather() — start all, wait for all</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Connected Day 5 fan-out/fan-in to actual asyncio mechanics</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood thread pool vs OS kernel (epoll) distinction</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>core/async_utils.py created — thread pool bridge</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>price_agent.py converted to async def</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>news_agent.py converted to async def</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>risk_agent.py converted to async def</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>graph_parallel.py created — fan-out/fan-in wiring</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>benchmark.py executed — saw real speedup numbers</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood why speedup isn't a perfect 3×</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Knew llm.ainvoke() as true async upgrade for LLM calls</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Can explain all 6 interview questions confidently</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleConcept(head) { head.parentElement.classList.toggle('open'); }
+  function toggleInsight(head) {
+    const card = head.parentElement;
+    card.classList.toggle('open');
+    const body = card.querySelector('.insight-body');
+    if (body) body.style.display = card.classList.contains('open') ? 'block' : 'none';
+    const chev = head.querySelector('.chevron');
+    if (chev) chev.style.transform = card.classList.contains('open') ? 'rotate(180deg)' : '';
+  }
+  function toggleQA(item) { item.classList.toggle('open'); }
+  function switchTab(btn, targetId) {
+    const nav  = btn.closest('.tab-nav');
+    const tabs = btn.closest('.tabs');
+    nav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tabs.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(targetId).classList.add('active');
+  }
+  function toggleCheck(item) {
+    item.classList.toggle('checked');
+    item.querySelector('.check-box').textContent = item.classList.contains('checked') ? '✓' : '';
+  }
+</script>
+</body>
+</html>

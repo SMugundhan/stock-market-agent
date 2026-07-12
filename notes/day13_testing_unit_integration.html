@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stock Analysis Agent — Day 13</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f14; --surface: #13161d; --card: #1a1e29; --border: #252a38;
+    --day13: #34d399; --day13-dim: rgba(52,211,153,0.12); --day13-glow: rgba(52,211,153,0.22);
+    --yellow: #ffd166; --cyan: #00c2ff; --orange: #ff6b35; --red: #ff4d6a; --purple: #a78bfa;
+    --text: #e8eaf2; --muted: #7a8099; --faint: #3a3f55;
+    --mono: 'JetBrains Mono', monospace; --sans: 'Inter', sans-serif; --display: 'Syne', sans-serif;
+    --radius: 10px; --radius-lg: 16px;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  nav { position: sticky; top: 0; z-index: 100; background: rgba(13,15,20,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; height: 56px; }
+  .nav-brand { font-family: var(--display); font-size: 16px; letter-spacing: 0.04em; color: var(--text); margin-right: auto; display: flex; align-items: center; gap: 8px; }
+  .nav-brand span { color: var(--day13); }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links a { text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 6px; transition: background 0.2s, color 0.2s; color: var(--muted); }
+  .nav-links a:hover { background: var(--card); color: var(--text); }
+  .nav-links a.d13 { color: var(--day13); }
+
+  .hero { padding: 72px 32px 56px; max-width: 900px; margin: 0 auto; text-align: center; }
+  .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--muted); background: var(--card); border: 1px solid var(--border); border-radius: 99px; padding: 5px 14px; margin-bottom: 28px; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--day13); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .hero h1 { font-family: var(--display); font-size: clamp(30px,5vw,50px); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; color: var(--text); margin-bottom: 20px; }
+  .hero h1 .accent { color: var(--day13); }
+  .hero-sub { font-size: 16px; color: var(--muted); max-width: 600px; margin: 0 auto 44px; }
+
+  /* test tier vis */
+  .test-tiers { display: flex; flex-direction: column; gap: 8px; max-width: 560px; margin: 32px auto 0; }
+  .test-tier { display: flex; align-items: center; gap: 16px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 20px; }
+  .test-tier .tt-icon { font-size: 20px; flex-shrink: 0; }
+  .test-tier .tt-name { font-family: var(--display); font-size: 14px; font-weight: 700; min-width: 120px; }
+  .test-tier .tt-desc { font-size: 12px; color: var(--muted); flex: 1; }
+  .test-tier .tt-speed { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
+  .test-tier.unit { border-color: rgba(52,211,153,0.3); }
+  .test-tier.unit .tt-name { color: var(--day13); }
+  .test-tier.unit .tt-speed { background: rgba(52,211,153,0.15); color: var(--day13); }
+  .test-tier.integ { border-color: rgba(0,194,255,0.3); }
+  .test-tier.integ .tt-name { color: var(--cyan); }
+  .test-tier.integ .tt-speed { background: rgba(0,194,255,0.15); color: var(--cyan); }
+  .test-tier.e2e { border-color: rgba(255,209,102,0.3); }
+  .test-tier.e2e .tt-name { color: var(--yellow); }
+  .test-tier.e2e .tt-speed { background: rgba(255,209,102,0.15); color: var(--yellow); }
+
+  .container { max-width: 940px; margin: 0 auto; padding: 0 32px 80px; }
+  .section { margin-bottom: 40px; }
+  .section-label { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-label .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 4px; }
+  .section-label h2 { font-family: var(--display); font-size: 19px; font-weight: 700; }
+
+  .goal-card { background: var(--card); border: 1px solid rgba(52,211,153,0.3); border-radius: var(--radius-lg); padding: 24px 28px; margin-bottom: 36px; box-shadow: 0 0 30px var(--day13-glow); }
+  .goal-card h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; color: var(--day13); margin-bottom: 14px; }
+  .goal-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .goal-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+  .goal-list li::before { content: '→'; font-family: var(--mono); font-size: 13px; color: var(--day13); flex-shrink: 0; margin-top: 2px; }
+
+  .concept { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 16px; }
+  .concept-head { display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: background 0.2s; }
+  .concept-head:hover { background: rgba(255,255,255,0.02); }
+  .concept-num { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; flex-shrink: 0; background: var(--day13-dim); color: var(--day13); }
+  .concept-head h3 { font-size: 16px; font-weight: 600; flex: 1; }
+  .chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; }
+  .concept.open .chevron { transform: rotate(180deg); }
+  .concept-body { display: none; padding: 20px 24px 24px; }
+  .concept.open .concept-body { display: block; }
+
+  .analogy { background: var(--surface); border-left: 3px solid var(--yellow); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin: 16px 0; font-size: 14px; }
+  .analogy strong.label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--yellow); margin-bottom: 10px; }
+
+  .code-wrap { background: #0a0c11; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 14px 0; }
+  .code-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .code-bar .filename { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .code-bar .lang { font-family: var(--mono); font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.1em; }
+  pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.65; padding: 18px 20px; overflow-x: auto; color: #c9d1e8; tab-size: 4; white-space: pre; }
+  .cm { color: #5c6680; } .ck { color: var(--day13); } .cs { color: #86e1a0; } .cn { color: var(--yellow); } .cf { color: var(--cyan); } .cp { color: var(--orange); }
+
+  /* mock compare */
+  .mock-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+  @media(max-width:600px) { .mock-compare { grid-template-columns: 1fr; } }
+  .mc-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .mc-head { padding: 10px 16px; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); }
+  .mc-box.real .mc-head { color: var(--red); }
+  .mc-box.mock .mc-head { color: var(--day13); border-color: rgba(52,211,153,0.2); }
+  .mc-box.mock { border-color: rgba(52,211,153,0.25); }
+  .mc-box pre { font-size: 12px; padding: 14px 16px; }
+  .mc-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 12px; font-family: var(--mono); border-bottom: 1px solid var(--border); }
+  .mc-row:last-child { border-bottom: none; }
+  .mc-row .mc-key { color: var(--muted); }
+  .mc-row .mc-val { color: var(--day13); }
+  .mc-row .mc-val.bad { color: var(--red); }
+  .mc-stats { padding: 14px 16px; }
+
+  /* pytest feature cards */
+  .pytest-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+  @media(max-width:600px) { .pytest-grid { grid-template-columns: 1fr; } }
+  .pytest-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .pytest-card h4 { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--day13); margin-bottom: 8px; }
+  .pytest-card p { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .pytest-card code { font-size: 11px; }
+
+  /* challenge list */
+  .challenge-list { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+  .challenge-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; }
+  .challenge-item .ch-num { font-family: var(--mono); font-size: 10px; color: var(--day13); letter-spacing: 0.1em; margin-bottom: 4px; }
+  .challenge-item .ch-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .challenge-item .ch-solution { font-size: 13px; color: var(--muted); }
+  .challenge-item .ch-solution strong { color: var(--day13); }
+
+  /* tabs */
+  .tabs { margin-bottom: 28px; }
+  .tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 22px; overflow-x: auto; }
+  .tab-btn { font-family: var(--sans); font-size: 13px; font-weight: 500; padding: 10px 18px; background: none; border: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s; white-space: nowrap; margin-bottom: -1px; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--day13); border-bottom-color: var(--day13); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* terminal */
+  .terminal { background: #060708; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 16px 0; }
+  .terminal-bar { display: flex; gap: 6px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f57; } .terminal-dot.yellow { background: #febc2e; } .terminal-dot.green { background: #28c840; }
+  .terminal pre { color: #8fdb9a; font-size: 12px; padding: 16px 20px; line-height: 1.65; }
+
+  /* qa */
+  .qa-list { display: flex; flex-direction: column; gap: 10px; }
+  .qa-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .qa-q { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px; cursor: pointer; user-select: none; transition: background 0.2s; }
+  .qa-q:hover { background: rgba(255,255,255,0.02); }
+  .qa-num { font-family: var(--mono); font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 2px; padding: 2px 8px; border-radius: 4px; background: var(--day13-dim); color: var(--day13); }
+  .qa-qtext { font-size: 14px; font-weight: 500; flex: 1; }
+  .qa-chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; margin-left: auto; flex-shrink: 0; }
+  .qa-item.open .qa-chevron { transform: rotate(180deg); }
+  .qa-a { display: none; padding: 14px 20px 16px 52px; font-size: 14px; color: #b0bbd4; line-height: 1.7; border-top: 1px solid var(--border); }
+  .qa-item.open .qa-a { display: block; }
+
+  /* checklist */
+  .checklist { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+  .checklist h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 16px; }
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media(max-width:600px) { .check-grid { grid-template-columns: 1fr; } }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; padding: 6px 0; transition: color 0.2s; }
+  .check-item.checked { color: var(--text); }
+  .check-box { width: 16px; height: 16px; border: 1px solid var(--faint); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; transition: background 0.2s, border-color 0.2s; font-size: 10px; }
+  .check-item.checked .check-box { background: var(--day13); border-color: var(--day13); color: #000; }
+
+  .yt-links { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+  .yt-link { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; text-decoration: none; font-size: 13px; color: var(--text); transition: border-color 0.2s, background 0.2s; }
+  .yt-link:hover { border-color: var(--day13); background: var(--day13-dim); }
+  .yt-icon { color: var(--red); font-size: 15px; }
+
+  .callout { border-radius: var(--radius); padding: 16px 20px; margin: 14px 0; font-size: 14px; }
+  .callout.info { background: var(--day13-dim); border: 1px solid rgba(52,211,153,0.3); color: #a7f3d0; }
+  .callout strong { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; display: block; margin-bottom: 6px; }
+
+  code { font-family: var(--mono); font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; color: var(--day13); }
+  p { margin-bottom: 12px; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; font-size: 14px; }
+  strong { color: var(--text); font-weight: 600; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">⬡ <span>Stock</span>Agent</div>
+  <div class="nav-links">
+    <a href="#concepts" class="d13">Concepts</a>
+    <a href="#code" class="d13">Code</a>
+    <a href="#interview" class="d13">Interview</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">
+    <span class="dot"></span>
+    LangGraph Agent Series · Day 13
+  </div>
+  <h1>
+    <span class="accent">Testing</span><br/>
+    Unit · Integration · Agent Tests
+  </h1>
+  <p class="hero-sub">
+    Stop guessing whether your agents work. Build a real test suite with mocks,
+    fixtures, and async tests — all passing in under 2 seconds.
+  </p>
+
+  <div class="test-tiers">
+    <div class="test-tier unit">
+      <span class="tt-icon">🔬</span>
+      <span class="tt-name">Unit Tests</span>
+      <span class="tt-desc">One function, mocked dependencies, no internet</span>
+      <span class="tt-speed">~0.1s each</span>
+    </div>
+    <div class="test-tier integ">
+      <span class="tt-icon">🔗</span>
+      <span class="tt-name">Integration Tests</span>
+      <span class="tt-desc">Components working together, real Redis</span>
+      <span class="tt-speed">~1-2s each</span>
+    </div>
+    <div class="test-tier e2e">
+      <span class="tt-icon">🌐</span>
+      <span class="tt-name">End-to-End Tests</span>
+      <span class="tt-desc">Full pipeline, real APIs, pre-deployment only</span>
+      <span class="tt-speed">10s+ each</span>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+
+  <div class="goal-card">
+    <h3>🎯 BY END OF TODAY</h3>
+    <ul class="goal-list">
+      <li>Understand why testing matters specifically for agent systems</li>
+      <li>Understand the difference between Unit, Integration, and End-to-End tests</li>
+      <li>Understand mocking — how to test without hitting real APIs</li>
+      <li>Write tests for your agents, tools, and API endpoints</li>
+      <li>Run your full test suite and interpret results</li>
+    </ul>
+  </div>
+
+  <!-- CONCEPTS -->
+  <div class="section" id="concepts">
+    <div class="section-label">
+      <span class="tag">CONCEPTS</span>
+      <h2>Core Ideas — Day 13</h2>
+    </div>
+
+    <div class="concept open">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C01</span>
+        <h3>Why Testing Agent Systems is Uniquely Challenging</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — REGULAR CAR vs SELF-DRIVING CAR</strong>
+          Regular car: press brake → car stops. Predictable, deterministic, easy to test.<br/><br/>
+          Self-driving car: show a stop sign → it should stop. But what if it's covered in snow? What if a pedestrian is jaywalking? The car makes DECISIONS — testing decisions is harder than testing mechanical responses.<br/><br/>
+          <strong>Your agent system is the self-driving car.</strong>
+        </div>
+
+        <div class="challenge-list">
+          <div class="challenge-item">
+            <div class="ch-num">CHALLENGE 1</div>
+            <div class="ch-title">Non-Determinism</div>
+            <div class="ch-solution">LLM might say "BUY" one run and "HOLD" the next for same data. → <strong>Assert output is in ["BUY","HOLD","SELL"]</strong>, not assert exact string.</div>
+          </div>
+          <div class="challenge-item">
+            <div class="ch-num">CHALLENGE 2</div>
+            <div class="ch-title">External Dependencies</div>
+            <div class="ch-solution">yFinance, Tavily, Groq require internet, are slow, and cost money. → <strong>MOCK these dependencies</strong> to make tests fast, free, and reliable.</div>
+          </div>
+          <div class="challenge-item">
+            <div class="ch-num">CHALLENGE 3</div>
+            <div class="ch-title">Complex State Flows</div>
+            <div class="ch-solution">A bug in Risk Agent only shows up when Analyst Agent reads bad State. → <strong>Integration tests</strong> that run multiple agents together.</div>
+          </div>
+          <div class="challenge-item">
+            <div class="ch-num">CHALLENGE 4</div>
+            <div class="ch-title">Infrastructure Dependencies</div>
+            <div class="ch-solution">Redis must be running for cache tests. → <strong>Separate test categories</strong>: some mock Redis, some need real Redis.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C02</span>
+        <h3>Unit vs Integration vs End-to-End Tests</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — TESTING A BICYCLE</strong>
+          <strong>Unit Test:</strong> Test brakes alone — squeeze lever → pads engage. Fast, isolated, catches exactly where the problem is.<br/>
+          <strong>Integration Test:</strong> Test gear + chain + wheel together — shift gear → wheel speed changes. Catches "works alone, breaks together" bugs.<br/>
+          <strong>End-to-End Test:</strong> Person rides 5km with hills and turns. Closest to real user experience, but slowest and most expensive.
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">test_categories.txt</span><span class="lang">text</span></div>
+          <pre>UNIT TESTS (fast, isolated — ~0.1s each):
+  → Test _fetch_price_sync() with MOCKED yFinance
+  → Test RSI calculation formula with known input/output
+  → Test validate_and_resolve_ticker() with various strings
+  → No internet. No Redis. No API keys.
+
+INTEGRATION TESTS (medium — ~1-2s each):
+  → Test Price Agent + Cache working together (real Redis)
+  → Test Orchestrator routing → correct agent is called
+  → Test State correctly flows from Price Agent to Analyst Agent
+
+END-TO-END TESTS (slow — 10s+ each):
+  → Full /analyze endpoint with real AAPL from Yahoo Finance
+  → Full pipeline: Orchestrator → Price → News → Risk → Analyst → Report
+  → Run sparingly — once before deployment only
+  → These cost real API money</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C03</span>
+        <h3>Mocking — Flight Simulators for Code</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — PILOT FLIGHT SIMULATORS</strong>
+          Real plane: $5000/hour, dangerous, can't test engine failure safely.<br/>
+          Simulator: $50/hour, safe, available anytime, CAN specifically test emergencies.<br/><br/>
+          The simulator gives the SAME INTERFACE as a real plane but with CONTROLLED, PREDICTABLE responses. That's exactly what mocking does for your tests.
+        </div>
+
+        <div class="mock-compare">
+          <div class="mc-box real">
+            <div class="mc-head">❌ REAL yFinance call</div>
+            <div class="mc-stats">
+              <div class="mc-row"><span class="mc-key">Speed</span><span class="mc-val bad">2-3 seconds</span></div>
+              <div class="mc-row"><span class="mc-key">Internet</span><span class="mc-val bad">Required</span></div>
+              <div class="mc-row"><span class="mc-key">Cost</span><span class="mc-val bad">API credits</span></div>
+              <div class="mc-row"><span class="mc-key">Data</span><span class="mc-val bad">Different every day</span></div>
+              <div class="mc-row"><span class="mc-key">If Yahoo down</span><span class="mc-val bad">Tests fail</span></div>
+            </div>
+          </div>
+          <div class="mc-box mock">
+            <div class="mc-head">✅ MOCKED yFinance</div>
+            <div class="mc-stats">
+              <div class="mc-row"><span class="mc-key">Speed</span><span class="mc-val">0.001 seconds</span></div>
+              <div class="mc-row"><span class="mc-key">Internet</span><span class="mc-val">Not needed</span></div>
+              <div class="mc-row"><span class="mc-key">Cost</span><span class="mc-val">Free</span></div>
+              <div class="mc-row"><span class="mc-key">Data</span><span class="mc-val">Same every run</span></div>
+              <div class="mc-row"><span class="mc-key">If Yahoo down</span><span class="mc-val">Tests still pass</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C04</span>
+        <h3>pytest — Key Features You'll Use</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="pytest-grid">
+          <div class="pytest-card">
+            <h4>@pytest.fixture</h4>
+            <p>Reusable setup code injected into tests by name. Define once in conftest.py, use everywhere.</p>
+            <code>def test_agent(base_state): ...</code>
+          </div>
+          <div class="pytest-card">
+            <h4>@pytest.mark.parametrize</h4>
+            <p>Run the same test with multiple inputs automatically. One test function covers many cases.</p>
+            <code>@parametrize("ticker", ["AAPL","TSLA"])</code>
+          </div>
+          <div class="pytest-card">
+            <h4>pytest.approx()</h4>
+            <p>Floating point comparison with tolerance. 0.1+0.2 ≠ 0.3 exactly — approx handles this.</p>
+            <code>assert result == pytest.approx(10.0, abs=0.01)</code>
+          </div>
+          <div class="pytest-card">
+            <h4>@pytest.mark.asyncio</h4>
+            <p>Lets pytest run async test functions. Required for testing your async agent nodes.</p>
+            <code>async def test_agent_node(): ...</code>
+          </div>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">pytest_patterns.py</span><span class="lang">python</span></div>
+          <pre><span class="cm"># Test a function raises the right error</span>
+<span class="ck">with</span> pytest.<span class="cf">raises</span>(ValueError) <span class="ck">as</span> exc_info:
+    <span class="cf">validate_and_resolve_ticker</span>(<span class="cs">""</span>)
+<span class="ck">assert</span> <span class="cs">"Ticker cannot be empty"</span> <span class="ck">in</span> <span class="cf">str</span>(exc_info.value)
+
+<span class="cm"># Parametrize runs same test with multiple inputs</span>
+@pytest.mark.<span class="cf">parametrize</span>(<span class="cs">"ticker,valid"</span>, [
+    (<span class="cs">"AAPL"</span>, <span class="ck">True</span>), (<span class="cs">"TSLA"</span>, <span class="ck">True</span>),
+    (<span class="cs">""</span>,     <span class="ck">False</span>), (<span class="cs">"INVALIDXYZ"</span>, <span class="ck">False</span>),
+])
+<span class="ck">def</span> <span class="cf">test_ticker_validation</span>(ticker, valid):
+    resolved, error = <span class="cf">validate_and_resolve_ticker</span>(ticker)
+    <span class="ck">assert</span> (error <span class="ck">is</span> <span class="ck">None</span>) == valid
+
+<span class="cm"># Verify a mock was called with specific arguments</span>
+mock_yf.<span class="cf">assert_called_once_with</span>(<span class="cs">"AAPL"</span>)
+mock_cache.<span class="cf">assert_not_called</span>()
+
+<span class="cm"># Make a mock RAISE an exception when called</span>
+mock_yf.side_effect = <span class="cf">Exception</span>(<span class="cs">"Yahoo Finance is down"</span>)</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CODE -->
+  <div class="section" id="code">
+    <div class="section-label">
+      <span class="tag">CODE</span>
+      <h2>Build Your Test Suite</h2>
+    </div>
+
+    <div class="callout info">
+      <strong>INSTALL + SETUP</strong>
+      <code>pip install pytest pytest-asyncio httpx pytest-mock</code><br/>
+      Then create: <code>tests/__init__.py</code>, <code>tests/conftest.py</code>, <code>pytest.ini</code>
+    </div>
+
+    <div class="tabs">
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab(this,'t-conf')">conftest.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-price')">test_price_agent.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-risk')">test_risk_agent.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-orch')">test_orchestrator.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-state')">test_state_flow.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-api')">test_api.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-ini')">pytest.ini + Run</button>
+      </div>
+
+      <div id="t-conf" class="tab-content active">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">tests/conftest.py</span><span class="lang">python</span></div>
+          <pre><span class="cm"># conftest.py — fixtures here are available to ALL test files automatically</span>
+<span class="cm"># pytest injects them by matching fixture name to test parameter name</span>
+
+<span class="ck">import</span> pytest
+<span class="ck">import</span> pandas <span class="ck">as</span> pd
+<span class="ck">import</span> numpy <span class="ck">as</span> np
+
+@pytest.fixture
+<span class="ck">def</span> <span class="cf">base_state</span>():
+    <span class="cs">"""Standard initial LangGraph state. Every test needing a state uses this."""</span>
+    <span class="ck">return</span> {
+        <span class="cs">"ticker"</span>:                <span class="cs">"AAPL"</span>,
+        <span class="cs">"query_type"</span>:            <span class="cs">"full"</span>,
+        <span class="cs">"analysis_type"</span>:         <span class="ck">None</span>,
+        <span class="cs">"should_fetch_news"</span>:     <span class="ck">None</span>,
+        <span class="cs">"should_calculate_risk"</span>: <span class="ck">None</span>,
+        <span class="cs">"current_price"</span>:         <span class="ck">None</span>,
+        <span class="cs">"price_change_pct"</span>:      <span class="ck">None</span>,
+        <span class="cs">"rsi"</span>:                   <span class="ck">None</span>,
+        <span class="cs">"news_headlines"</span>:        <span class="ck">None</span>,
+        <span class="cs">"sentiment_score"</span>:       <span class="ck">None</span>,
+        <span class="cs">"volatility"</span>:            <span class="ck">None</span>,
+        <span class="cs">"risk_level"</span>:            <span class="ck">None</span>,
+        <span class="cs">"recommendation"</span>:        <span class="ck">None</span>,
+        <span class="cs">"confidence"</span>:            <span class="ck">None</span>,
+        <span class="cs">"reasoning"</span>:             <span class="ck">None</span>,
+        <span class="cs">"final_report"</span>:          <span class="ck">None</span>,
+        <span class="cs">"errors"</span>:                [],
+        <span class="cs">"retry_count"</span>:           <span class="cn">0</span>,
+        <span class="cs">"request_id"</span>:            <span class="cs">"test-request-001"</span>
+    }
+
+
+@pytest.fixture
+<span class="ck">def</span> <span class="cf">partial_state</span>():
+    <span class="cs">"""State partially filled — as if Price Agent already ran."""</span>
+    <span class="ck">return</span> {
+        <span class="cs">"ticker"</span>:                <span class="cs">"AAPL"</span>,
+        <span class="cs">"query_type"</span>:            <span class="cs">"full"</span>,
+        <span class="cs">"analysis_type"</span>:         <span class="cs">"full"</span>,
+        <span class="cs">"should_fetch_news"</span>:     <span class="ck">True</span>,
+        <span class="cs">"should_calculate_risk"</span>: <span class="ck">True</span>,
+        <span class="cs">"current_price"</span>:         <span class="cn">189.3</span>,
+        <span class="cs">"price_change_pct"</span>:      <span class="cn">1.2</span>,
+        <span class="cs">"rsi"</span>:                   <span class="cn">58.4</span>,
+        <span class="cs">"news_headlines"</span>:        [<span class="cs">"Apple hits record high"</span>, <span class="cs">"Apple Q3 beats"</span>],
+        <span class="cs">"sentiment_score"</span>:       <span class="cn">0.68</span>,
+        <span class="cs">"volatility"</span>:            <span class="cn">22.4</span>,
+        <span class="cs">"risk_level"</span>:            <span class="cs">"MEDIUM"</span>,
+        <span class="cs">"recommendation"</span>:        <span class="ck">None</span>,
+        <span class="cs">"confidence"</span>:            <span class="ck">None</span>,
+        <span class="cs">"reasoning"</span>:             <span class="ck">None</span>,
+        <span class="cs">"final_report"</span>:          <span class="ck">None</span>,
+        <span class="cs">"errors"</span>:                [],
+        <span class="cs">"retry_count"</span>:           <span class="cn">0</span>,
+        <span class="cs">"request_id"</span>:            <span class="cs">"test-request-002"</span>
+    }
+
+
+@pytest.fixture
+<span class="ck">def</span> <span class="cf">mock_yfinance_data</span>():
+    <span class="cs">"""Mock DataFrame that looks like what yf.Ticker.history() returns."""</span>
+    closes = np.<span class="cf">linspace</span>(<span class="cn">185.0</span>, <span class="cn">192.0</span>, <span class="cn">30</span>)
+    <span class="cm"># np.linspace(185, 192, 30) = 30 evenly spaced values from 185 to 192</span>
+    <span class="ck">return</span> pd.<span class="cf">DataFrame</span>({
+        <span class="cs">"Close"</span>:  closes,
+        <span class="cs">"Open"</span>:   closes * <span class="cn">0.99</span>,
+        <span class="cs">"High"</span>:   closes * <span class="cn">1.01</span>,
+        <span class="cs">"Low"</span>:    closes * <span class="cn">0.98</span>,
+        <span class="cs">"Volume"</span>: [<span class="cn">50_000_000</span>] * <span class="cn">30</span>
+    })</pre>
+        </div>
+      </div>
+
+      <div id="t-price" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">tests/test_price_agent.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> pytest
+<span class="ck">import</span> pandas <span class="ck">as</span> pd
+<span class="ck">from</span> unittest.mock <span class="ck">import</span> patch
+<span class="ck">from</span> agents.price_agent <span class="ck">import</span> _fetch_price_sync, price_agent_node
+
+
+<span class="ck">class</span> <span class="cf">TestFetchPriceSync</span>:
+    <span class="cs">"""Unit tests for _fetch_price_sync — mocked yFinance."""</span>
+
+    <span class="ck">def</span> <span class="cf">test_returns_correct_keys</span>(self, mock_yfinance_data):
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_ticker:
+            <span class="cm"># patch() temporarily replaces yf.Ticker with a mock object</span>
+            mock_ticker.return_value.history.return_value = mock_yfinance_data
+            result = <span class="cf">_fetch_price_sync</span>(<span class="cs">"AAPL"</span>)
+            <span class="ck">assert</span> <span class="cs">"current_price"</span> <span class="ck">in</span> result
+            <span class="ck">assert</span> <span class="cs">"price_change_pct"</span> <span class="ck">in</span> result
+            <span class="ck">assert</span> <span class="cs">"rsi"</span> <span class="ck">in</span> result
+
+    <span class="ck">def</span> <span class="cf">test_rsi_within_valid_range</span>(self, mock_yfinance_data):
+        <span class="cs">"""RSI must always be between 0 and 100 — that's its definition."""</span>
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_ticker:
+            mock_ticker.return_value.history.return_value = mock_yfinance_data
+            result = <span class="cf">_fetch_price_sync</span>(<span class="cs">"AAPL"</span>)
+            <span class="ck">assert</span> <span class="cn">0</span> <= result[<span class="cs">"rsi"</span>] <= <span class="cn">100</span>
+
+    <span class="ck">def</span> <span class="cf">test_empty_dataframe_raises_error</span>(self):
+        <span class="cs">"""If yFinance returns empty data, should raise ValueError."""</span>
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_ticker:
+            mock_ticker.return_value.history.return_value = pd.<span class="cf">DataFrame</span>()
+            <span class="ck">with</span> pytest.<span class="cf">raises</span>(ValueError) <span class="ck">as</span> exc_info:
+                <span class="cf">_fetch_price_sync</span>(<span class="cs">"INVALIDXYZ"</span>)
+            <span class="ck">assert</span> <span class="cs">"No price data"</span> <span class="ck">in</span> <span class="cf">str</span>(exc_info.value)
+
+    <span class="ck">def</span> <span class="cf">test_price_change_calculation</span>(self):
+        <span class="cs">"""Verify 10% increase is calculated correctly."""</span>
+        df = pd.<span class="cf">DataFrame</span>({<span class="cs">"Close"</span>: [<span class="cn">100.0</span>, <span class="cn">110.0</span>]})
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_ticker:
+            mock_ticker.return_value.history.return_value = df
+            result = <span class="cf">_fetch_price_sync</span>(<span class="cs">"TEST"</span>)
+            <span class="ck">assert</span> result[<span class="cs">"price_change_pct"</span>] == pytest.<span class="cf">approx</span>(<span class="cn">10.0</span>, <span class="cp">abs</span>=<span class="cn">0.01</span>)
+            <span class="cm"># pytest.approx() handles floating point precision issues</span>
+
+
+<span class="ck">class</span> <span class="cf">TestPriceAgentNode</span>:
+    <span class="cs">"""Async integration tests for the full price_agent_node."""</span>
+
+    @pytest.mark.asyncio
+    <span class="ck">async def</span> <span class="cf">test_cache_hit_skips_yfinance</span>(self, base_state):
+        <span class="cs">"""If cache has data, yFinance should NEVER be called."""</span>
+        cached = {<span class="cs">"current_price"</span>: <span class="cn">189.3</span>, <span class="cs">"price_change_pct"</span>: <span class="cn">1.2</span>, <span class="cs">"rsi"</span>: <span class="cn">58.4</span>}
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.get_cached"</span>, <span class="cp">return_value</span>=cached):
+            <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_yf:
+                result = <span class="ck">await</span> <span class="cf">price_agent_node</span>(base_state)
+                mock_yf.<span class="cf">assert_not_called</span>()  <span class="cm"># ← verify yFinance was never touched</span>
+                <span class="ck">assert</span> result[<span class="cs">"current_price"</span>] == <span class="cn">189.3</span>
+
+    @pytest.mark.asyncio
+    <span class="ck">async def</span> <span class="cf">test_yfinance_failure_returns_errors</span>(self, base_state):
+        <span class="cs">"""If yFinance crashes, node returns errors gracefully — doesn't raise."""</span>
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.get_cached"</span>, <span class="cp">return_value</span>=<span class="ck">None</span>):
+            <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_yf:
+                mock_yf.side_effect = <span class="cf">Exception</span>(<span class="cs">"Yahoo Finance is down"</span>)
+                <span class="cm"># side_effect = raise this exception when the mock is called</span>
+                result = <span class="ck">await</span> <span class="cf">price_agent_node</span>(base_state)
+                <span class="ck">assert</span> result[<span class="cs">"current_price"</span>] <span class="ck">is</span> <span class="ck">None</span>
+                <span class="ck">assert</span> <span class="cf">len</span>(result[<span class="cs">"errors"</span>]) > <span class="cn">0</span>
+                <span class="ck">assert</span> <span class="cs">"Yahoo Finance is down"</span> <span class="ck">in</span> result[<span class="cs">"errors"</span>][<span class="cn">0</span>]</pre>
+        </div>
+      </div>
+
+      <div id="t-risk" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">tests/test_risk_agent.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> pytest
+<span class="ck">import</span> pandas <span class="ck">as</span> pd
+<span class="ck">import</span> numpy <span class="ck">as</span> np
+<span class="ck">from</span> unittest.mock <span class="ck">import</span> patch
+
+
+<span class="ck">class</span> <span class="cf">TestRiskCalculations</span>:
+
+    <span class="ck">def</span> <span class="cf">test_zero_volatility_stock</span>(self):
+        <span class="cs">"""Constant price = zero daily returns = zero volatility"""</span>
+        <span class="ck">from</span> agents.risk_agent <span class="ck">import</span> _calculate_risk_sync
+        closes = pd.<span class="cf">Series</span>([<span class="cn">100.0</span>] * <span class="cn">100</span>)
+        df     = pd.<span class="cf">DataFrame</span>({<span class="cs">"Close"</span>: closes})
+
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.risk_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_ticker:
+            mock_ticker.return_value.history.side_effect = [df, df]
+            <span class="cm"># side_effect=[a,b] → first call returns a, second returns b</span>
+            result = <span class="cf">_calculate_risk_sync</span>(<span class="cs">"AAPL"</span>)
+            <span class="ck">assert</span> result[<span class="cs">"volatility"</span>] == pytest.<span class="cf">approx</span>(<span class="cn">0.0</span>, <span class="cp">abs</span>=<span class="cn">0.1</span>)
+
+    <span class="ck">def</span> <span class="cf">test_high_volatility_classified_high_risk</span>(self):
+        <span class="cs">"""Stocks with >40% annual volatility → HIGH risk level"""</span>
+        <span class="ck">from</span> agents.risk_agent <span class="ck">import</span> _calculate_risk_sync
+
+        <span class="cm"># Alternating +10%/-10% every day = extreme volatility</span>
+        prices = []
+        price  = <span class="cn">100.0</span>
+        <span class="ck">for</span> i <span class="ck">in</span> <span class="cf">range</span>(<span class="cn">200</span>):
+            price *= <span class="cn">1.10</span> <span class="ck">if</span> i % <span class="cn">2</span> == <span class="cn">0</span> <span class="ck">else</span> <span class="cn">0.90</span>
+            prices.<span class="cf">append</span>(price)
+
+        df     = pd.<span class="cf">DataFrame</span>({<span class="cs">"Close"</span>: pd.<span class="cf">Series</span>(prices)})
+        spy_df = pd.<span class="cf">DataFrame</span>({<span class="cs">"Close"</span>: pd.<span class="cf">Series</span>([<span class="cn">100.0</span>] * <span class="cn">200</span>)})
+
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.risk_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_ticker:
+            mock_ticker.return_value.history.side_effect = [df, spy_df]
+            result = <span class="cf">_calculate_risk_sync</span>(<span class="cs">"TSLA"</span>)
+            <span class="ck">assert</span> result[<span class="cs">"risk_level"</span>] == <span class="cs">"HIGH"</span>
+
+    <span class="ck">def</span> <span class="cf">test_risk_level_always_valid(self)</span>:
+        <span class="cs">"""risk_level must always be one of exactly three values"""</span>
+        <span class="ck">from</span> agents.risk_agent <span class="ck">import</span> _calculate_risk_sync
+        closes = pd.<span class="cf">Series</span>(np.<span class="cf">linspace</span>(<span class="cn">100</span>, <span class="cn">110</span>, <span class="cn">200</span>))
+        df     = pd.<span class="cf">DataFrame</span>({<span class="cs">"Close"</span>: closes})
+
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.risk_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_ticker:
+            mock_ticker.return_value.history.side_effect = [df, df]
+            result = <span class="cf">_calculate_risk_sync</span>(<span class="cs">"AAPL"</span>)
+            <span class="ck">assert</span> result[<span class="cs">"risk_level"</span>] <span class="ck">in</span> [<span class="cs">"LOW"</span>, <span class="cs">"MEDIUM"</span>, <span class="cs">"HIGH"</span>]
+
+    <span class="ck">def</span> <span class="cf">test_max_drawdown_is_never_positive</span>(self):
+        <span class="cs">"""Drawdown = loss from peak — mathematically must be ≤ 0"""</span>
+        closes       = pd.<span class="cf">Series</span>(np.<span class="cf">linspace</span>(<span class="cn">100</span>, <span class="cn">110</span>, <span class="cn">200</span>))
+        daily_returns = closes.<span class="cf">pct_change</span>().<span class="cf">dropna</span>()
+        cumulative    = (<span class="cn">1</span> + daily_returns).<span class="cf">cumprod</span>()
+        rolling_max   = cumulative.<span class="cf">cummax</span>()
+        drawdown      = (cumulative - rolling_max) / rolling_max
+        max_drawdown  = <span class="cf">float</span>(drawdown.<span class="cf">min</span>()) * <span class="cn">100</span>
+        <span class="ck">assert</span> max_drawdown <= <span class="cn">0</span></pre>
+        </div>
+      </div>
+
+      <div id="t-orch" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">tests/test_orchestrator.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> pytest
+<span class="ck">from</span> contextlib <span class="ck">import</span> contextmanager
+<span class="ck">from</span> unittest.mock <span class="ck">import</span> patch
+<span class="ck">from</span> agents.orchestrator <span class="ck">import</span> validate_and_resolve_ticker
+
+
+@contextmanager
+<span class="ck">def</span> <span class="cf">patch_yfinance_valid</span>():
+    <span class="cs">"""Makes yFinance validation always succeed — test OTHER logic"""</span>
+    <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.orchestrator.yf.Ticker"</span>) <span class="ck">as</span> mock:
+        mock.return_value.info = {
+            <span class="cs">"regularMarketPrice"</span>: <span class="cn">189.3</span>,
+            <span class="cs">"longName"</span>: <span class="cs">"Apple Inc."</span>
+        }
+        <span class="ck">yield</span> mock
+
+
+<span class="ck">class</span> <span class="cf">TestTickerValidation</span>:
+
+    <span class="ck">def</span> <span class="cf">test_valid_ticker_passes</span>(self):
+        <span class="ck">with</span> <span class="cf">patch_yfinance_valid</span>():
+            resolved, error = <span class="cf">validate_and_resolve_ticker</span>(<span class="cs">"AAPL"</span>)
+            <span class="ck">assert</span> error <span class="ck">is</span> <span class="ck">None</span>
+            <span class="ck">assert</span> resolved == <span class="cs">"AAPL"</span>
+
+    <span class="ck">def</span> <span class="cf">test_lowercase_converted_to_uppercase</span>(self):
+        <span class="ck">with</span> <span class="cf">patch_yfinance_valid</span>():
+            resolved, error = <span class="cf">validate_and_resolve_ticker</span>(<span class="cs">"aapl"</span>)
+            <span class="ck">assert</span> resolved == <span class="cs">"AAPL"</span>
+
+    <span class="ck">def</span> <span class="cf">test_company_name_resolves_to_ticker</span>(self):
+        <span class="cs">"""'apple' → 'AAPL' via name mapping (no yFinance call needed)"""</span>
+        resolved, error = <span class="cf">validate_and_resolve_ticker</span>(<span class="cs">"apple"</span>)
+        <span class="ck">assert</span> error <span class="ck">is</span> <span class="ck">None</span>
+        <span class="ck">assert</span> resolved == <span class="cs">"AAPL"</span>
+
+    <span class="ck">def</span> <span class="cf">test_empty_ticker_returns_error</span>(self):
+        resolved, error = <span class="cf">validate_and_resolve_ticker</span>(<span class="cs">""</span>)
+        <span class="ck">assert</span> error <span class="ck">is not</span> <span class="ck">None</span>
+        <span class="ck">assert</span> resolved == <span class="cs">""</span>
+
+    <span class="ck">def</span> <span class="cf">test_spaces_around_ticker_stripped</span>(self):
+        <span class="ck">with</span> <span class="cf">patch_yfinance_valid</span>():
+            resolved, error = <span class="cf">validate_and_resolve_ticker</span>(<span class="cs">" AAPL "</span>)
+            <span class="ck">assert</span> error <span class="ck">is</span> <span class="ck">None</span>
+            <span class="ck">assert</span> resolved == <span class="cs">"AAPL"</span>
+
+    <span class="cm"># parametrize = runs this ONE test function for ALL input pairs</span>
+    @pytest.mark.<span class="cf">parametrize</span>(<span class="cs">"company_name,expected_ticker"</span>, [
+        (<span class="cs">"apple"</span>,     <span class="cs">"AAPL"</span>),
+        (<span class="cs">"tesla"</span>,     <span class="cs">"TSLA"</span>),
+        (<span class="cs">"microsoft"</span>, <span class="cs">"MSFT"</span>),
+        (<span class="cs">"google"</span>,    <span class="cs">"GOOGL"</span>),
+        (<span class="cs">"amazon"</span>,    <span class="cs">"AMZN"</span>),
+    ])
+    <span class="ck">def</span> <span class="cf">test_all_common_names_resolve</span>(self, company_name, expected_ticker):
+        resolved, error = <span class="cf">validate_and_resolve_ticker</span>(company_name)
+        <span class="ck">assert</span> error <span class="ck">is</span> <span class="ck">None</span>
+        <span class="ck">assert</span> resolved == expected_ticker</pre>
+        </div>
+      </div>
+
+      <div id="t-state" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">tests/test_state_flow.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> pytest
+<span class="ck">import</span> pandas <span class="ck">as</span> pd
+<span class="ck">import</span> numpy <span class="ck">as</span> np
+<span class="ck">from</span> unittest.mock <span class="ck">import</span> patch
+
+
+<span class="ck">def</span> <span class="cf">create_mock_df</span>(num_days: int = <span class="cn">30</span>):
+    closes = np.<span class="cf">linspace</span>(<span class="cn">185.0</span>, <span class="cn">192.0</span>, num_days)
+    <span class="ck">return</span> pd.<span class="cf">DataFrame</span>({<span class="cs">"Close"</span>: closes, <span class="cs">"Volume"</span>: [<span class="cn">50_000_000</span>] * num_days})
+
+
+<span class="ck">class</span> <span class="cf">TestStateFlow</span>:
+
+    @pytest.mark.asyncio
+    <span class="ck">async def</span> <span class="cf">test_price_agent_fills_correct_fields</span>(self, base_state):
+        <span class="cs">"""Price Agent should fill exactly price/rsi fields — NOT news or risk."""</span>
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.get_cached"</span>, <span class="cp">return_value</span>=<span class="ck">None</span>):
+            <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_yf:
+                <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.set_cached"</span>):
+                    mock_yf.return_value.history.return_value = <span class="cf">create_mock_df</span>()
+                    <span class="ck">from</span> agents.price_agent <span class="ck">import</span> price_agent_node
+                    result = <span class="ck">await</span> <span class="cf">price_agent_node</span>(base_state)
+
+                    <span class="cm"># MUST fill these fields</span>
+                    <span class="ck">assert</span> <span class="cs">"current_price"</span>    <span class="ck">in</span> result
+                    <span class="ck">assert</span> <span class="cs">"price_change_pct"</span> <span class="ck">in</span> result
+                    <span class="ck">assert</span> <span class="cs">"rsi"</span>             <span class="ck">in</span> result
+                    <span class="ck">assert</span> <span class="cs">"errors"</span>          <span class="ck">in</span> result
+
+                    <span class="cm"># MUST NOT fill another agent's responsibility</span>
+                    <span class="ck">assert</span> <span class="cs">"news_headlines"</span>  <span class="ck">not in</span> result
+                    <span class="ck">assert</span> <span class="cs">"volatility"</span>      <span class="ck">not in</span> result
+                    <span class="ck">assert</span> <span class="cs">"recommendation"</span>  <span class="ck">not in</span> result
+
+    @pytest.mark.asyncio
+    <span class="ck">async def</span> <span class="cf">test_errors_list_empty_on_success</span>(self, base_state):
+        <span class="cs">"""On success, errors must be [] not None"""</span>
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.get_cached"</span>, <span class="cp">return_value</span>=<span class="ck">None</span>):
+            <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.yf.Ticker"</span>) <span class="ck">as</span> mock_yf:
+                <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"agents.price_agent.set_cached"</span>):
+                    mock_yf.return_value.history.return_value = <span class="cf">create_mock_df</span>()
+                    <span class="ck">from</span> agents.price_agent <span class="ck">import</span> price_agent_node
+                    result = <span class="ck">await</span> <span class="cf">price_agent_node</span>(base_state)
+                    <span class="ck">assert</span> result[<span class="cs">"errors"</span>] == []
+                    <span class="ck">assert</span> <span class="cf">isinstance</span>(result[<span class="cs">"errors"</span>], list)
+
+    <span class="ck">def</span> <span class="cf">test_state_has_all_required_fields</span>(self, base_state):
+        <span class="cs">"""
+        Verify base_state fixture has all fields from StockAnalysisState.
+        If we add a new field to the TypedDict, this test catches it.
+        """</span>
+        <span class="ck">import</span> typing
+        <span class="ck">from</span> core.state <span class="ck">import</span> StockAnalysisState
+        required_keys = typing.<span class="cf">get_type_hints</span>(StockAnalysisState).<span class="cf">keys</span>()
+        <span class="ck">for</span> key <span class="ck">in</span> required_keys:
+            <span class="ck">assert</span> key <span class="ck">in</span> base_state, <span class="cs">f"base_state missing field: '{key}'"</span></pre>
+        </div>
+      </div>
+
+      <div id="t-api" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">tests/test_api.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> pytest
+<span class="ck">import</span> json
+<span class="ck">from</span> fastapi.testclient <span class="ck">import</span> TestClient
+<span class="cm"># TestClient = makes HTTP requests to FastAPI app WITHOUT starting a real server</span>
+<span class="ck">from</span> unittest.mock <span class="ck">import</span> patch
+<span class="ck">from</span> api.main <span class="ck">import</span> app
+
+client = <span class="cf">TestClient</span>(app)
+
+
+<span class="ck">class</span> <span class="cf">TestHealthEndpoint</span>:
+
+    <span class="ck">def</span> <span class="cf">test_health_returns_200</span>(self):
+        response = client.<span class="cf">get</span>(<span class="cs">"/health"</span>)
+        <span class="ck">assert</span> response.status_code == <span class="cn">200</span>
+
+    <span class="ck">def</span> <span class="cf">test_health_status_is_valid_string</span>(self):
+        data = client.<span class="cf">get</span>(<span class="cs">"/health"</span>).<span class="cf">json</span>()
+        <span class="ck">assert</span> <span class="cf">isinstance</span>(data[<span class="cs">"status"</span>], str)
+        <span class="ck">assert</span> data[<span class="cs">"status"</span>] <span class="ck">in</span> [<span class="cs">"healthy"</span>, <span class="cs">"degraded"</span>]
+
+
+MOCK_REPORT = json.<span class="cf">dumps</span>({
+    <span class="cs">"ticker"</span>: <span class="cs">"AAPL"</span>, <span class="cs">"report_date"</span>: <span class="cs">"2026-06-16 14:30"</span>,
+    <span class="cs">"analysis_type"</span>: <span class="cs">"full"</span>,
+    <span class="cs">"market_data"</span>: {<span class="cs">"current_price"</span>: <span class="cn">189.3</span>, <span class="cs">"price_change_pct"</span>: <span class="cn">1.2</span>, <span class="cs">"rsi"</span>: <span class="cn">58.4</span>},
+    <span class="cs">"sentiment"</span>: {<span class="cs">"score"</span>: <span class="cn">0.68</span>, <span class="cs">"headlines"</span>: []},
+    <span class="cs">"risk"</span>: {<span class="cs">"volatility_annual"</span>: <span class="cn">22.4</span>, <span class="cs">"risk_level"</span>: <span class="cs">"MEDIUM"</span>},
+    <span class="cs">"verdict"</span>: {<span class="cs">"recommendation"</span>: <span class="cs">"BUY"</span>, <span class="cs">"confidence"</span>: <span class="cn">0.78</span>,
+                <span class="cs">"reasoning"</span>: <span class="cs">"Strong fundamentals"</span>, <span class="cs">"key_factors"</span>: [<span class="cs">"momentum"</span>]},
+    <span class="cs">"executive_summary"</span>: <span class="cs">"Apple shows strong momentum..."</span>,
+    <span class="cs">"disclaimer"</span>: <span class="cs">"For educational purposes only."</span>, <span class="cs">"errors"</span>: []
+})
+
+
+<span class="ck">class</span> <span class="cf">TestAnalyzeEndpoint</span>:
+
+    <span class="ck">def</span> <span class="cf">test_valid_ticker_returns_200</span>(self):
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"api.main.graph"</span>) <span class="ck">as</span> mock_graph:
+            mock_graph.invoke.return_value = {
+                <span class="cs">"final_report"</span>: MOCK_REPORT, <span class="cs">"analysis_type"</span>: <span class="cs">"full"</span>, <span class="cs">"errors"</span>: []
+            }
+            <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"api.main.save_conversation_turn"</span>):
+                response = client.<span class="cf">post</span>(<span class="cs">"/analyze"</span>, <span class="cp">json</span>={<span class="cs">"ticker"</span>: <span class="cs">"AAPL"</span>})
+                <span class="ck">assert</span> response.status_code == <span class="cn">200</span>
+
+    <span class="ck">def</span> <span class="cf">test_recommendation_is_valid_value</span>(self):
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"api.main.graph"</span>) <span class="ck">as</span> mock_graph:
+            mock_graph.invoke.return_value = {
+                <span class="cs">"final_report"</span>: MOCK_REPORT, <span class="cs">"analysis_type"</span>: <span class="cs">"full"</span>, <span class="cs">"errors"</span>: []
+            }
+            <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"api.main.save_conversation_turn"</span>):
+                data = client.<span class="cf">post</span>(<span class="cs">"/analyze"</span>, <span class="cp">json</span>={<span class="cs">"ticker"</span>: <span class="cs">"AAPL"</span>}).<span class="cf">json</span>()
+                <span class="ck">assert</span> data[<span class="cs">"verdict"</span>][<span class="cs">"recommendation"</span>] <span class="ck">in</span> [<span class="cs">"BUY"</span>, <span class="cs">"HOLD"</span>, <span class="cs">"SELL"</span>]
+
+    <span class="ck">def</span> <span class="cf">test_missing_ticker_returns_422</span>(self):
+        <span class="cs">"""FastAPI's Pydantic auto-returns 422 for missing required fields"""</span>
+        response = client.<span class="cf">post</span>(<span class="cs">"/analyze"</span>, <span class="cp">json</span>={<span class="cs">"query_type"</span>: <span class="cs">"full"</span>})
+        <span class="cm"># ticker is missing — FastAPI rejects BEFORE our code even runs</span>
+        <span class="ck">assert</span> response.status_code == <span class="cn">422</span>
+
+    <span class="ck">def</span> <span class="cf">test_error_state_returns_404</span>(self):
+        <span class="ck">with</span> <span class="cf">patch</span>(<span class="cs">"api.main.graph"</span>) <span class="ck">as</span> mock_graph:
+            mock_graph.invoke.return_value = {
+                <span class="cs">"final_report"</span>: <span class="ck">None</span>, <span class="cs">"analysis_type"</span>: <span class="cs">"error"</span>,
+                <span class="cs">"errors"</span>: [<span class="cs">"Invalid ticker: INVALIDXYZ"</span>], <span class="cs">"ticker"</span>: <span class="cs">"INVALIDXYZ"</span>
+            }
+            response = client.<span class="cf">post</span>(<span class="cs">"/analyze"</span>, <span class="cp">json</span>={<span class="cs">"ticker"</span>: <span class="cs">"INVALIDXYZ"</span>})
+            <span class="ck">assert</span> response.status_code == <span class="cn">404</span></pre>
+        </div>
+      </div>
+
+      <div id="t-ini" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">pytest.ini</span><span class="lang">ini</span></div>
+          <pre>[pytest]
+testpaths = tests
+
+asyncio_mode = auto
+# pytest-asyncio: handle async test functions without @pytest.mark.asyncio
+
+markers =
+    unit: fast unit tests, no external dependencies
+    integration: tests that need Redis running
+    slow: end-to-end tests that hit real APIs
+
+log_cli = true
+log_cli_level = WARNING</pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">run_commands.sh</span><span class="lang">bash</span></div>
+          <pre># Run ALL tests
+pytest
+
+# Verbose — see each test name
+pytest -v
+
+# Only unit tests (fast)
+pytest -m unit
+
+# Only API tests
+pytest tests/test_api.py
+
+# Specific test class
+pytest tests/test_price_agent.py::TestFetchPriceSync
+
+# Specific test function
+pytest tests/test_price_agent.py::TestFetchPriceSync::test_rsi_within_valid_range
+
+# With coverage report
+pip install pytest-cov
+pytest --cov=agents --cov=api --cov-report=term-missing</pre>
+        </div>
+
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="terminal-dot red"></div>
+            <div class="terminal-dot yellow"></div>
+            <div class="terminal-dot green"></div>
+          </div>
+          <pre>============================== test session starts ==============================
+tests/test_price_agent.py::TestFetchPriceSync::test_returns_correct_keys     <span style="color:var(--day13)">PASSED</span>
+tests/test_price_agent.py::TestFetchPriceSync::test_rsi_within_valid_range    <span style="color:var(--day13)">PASSED</span>
+tests/test_price_agent.py::TestFetchPriceSync::test_empty_dataframe_raises    <span style="color:var(--day13)">PASSED</span>
+tests/test_price_agent.py::TestFetchPriceSync::test_price_change_calculation  <span style="color:var(--day13)">PASSED</span>
+tests/test_price_agent.py::TestPriceAgentNode::test_cache_hit_skips_yfinance  <span style="color:var(--day13)">PASSED</span>
+tests/test_price_agent.py::TestPriceAgentNode::test_yfinance_failure_returns  <span style="color:var(--day13)">PASSED</span>
+tests/test_risk_agent.py::TestRiskCalculations::test_zero_volatility_stock    <span style="color:var(--day13)">PASSED</span>
+tests/test_risk_agent.py::TestRiskCalculations::test_risk_level_always_valid  <span style="color:var(--day13)">PASSED</span>
+tests/test_orchestrator.py::TestTickerValidation::test_valid_ticker_passes    <span style="color:var(--day13)">PASSED</span>
+tests/test_orchestrator.py::TestTickerValidation::test_all_common_names[apple-AAPL] <span style="color:var(--day13)">PASSED</span>
+tests/test_orchestrator.py::TestTickerValidation::test_all_common_names[tesla-TSLA] <span style="color:var(--day13)">PASSED</span>
+tests/test_api.py::TestHealthEndpoint::test_health_returns_200                <span style="color:var(--day13)">PASSED</span>
+tests/test_api.py::TestAnalyzeEndpoint::test_missing_ticker_returns_422       <span style="color:var(--day13)">PASSED</span>
+
+<span style="color:var(--day13)">============================== 13 passed in 1.24s ==============================</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERVIEW QA -->
+  <div class="section" id="interview">
+    <div class="section-label">
+      <span class="tag">INTERVIEW</span>
+      <h2>Q&A — Day 13</h2>
+    </div>
+    <div class="qa-list">
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Why is testing AI agent systems more challenging than testing regular software?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Three main reasons: first, LLMs are non-deterministic — the same prompt can return different outputs on different runs, so you can't assert exact LLM responses, only that outputs conform to expected shapes and value ranges. Second, agents depend on external APIs that are slow, costly, and can fail, requiring mocking to make tests fast and reliable. Third, bugs in multi-agent systems are often emergent — an individual agent looks correct in isolation but produces wrong output when State from a previous agent is malformed.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is mocking and why is it essential for testing your agent system?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Mocking replaces a real dependency with a fake version that returns controlled, predictable outputs. In my tests, I mock yFinance to return a pre-defined DataFrame instead of hitting Yahoo Finance's servers — making tests run in 0.001 seconds instead of 2-3 seconds, without requiring internet, without costing API credits, and allowing me to test edge cases like empty data or network failures that I can't easily trigger with real APIs.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What's the difference between unit, integration, and end-to-end tests?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Unit tests verify a single function in complete isolation — like testing the RSI calculation formula with known inputs. Integration tests verify components working together — like testing Price Agent plus the cache layer to confirm data is actually stored and retrieved correctly. End-to-end tests exercise the full system under realistic conditions — making a real API call through all 5 agents. Each level catches different bugs; I prioritize unit and integration tests for speed, with end-to-end tests reserved for pre-deployment verification.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What does pytest.approx() do and why do you need it for floating point assertions?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Floating point arithmetic has tiny precision errors — 0.1 + 0.2 gives 0.30000000000000004, not exactly 0.3. If I assert result == 10.0 for a percentage calculation, it might fail due to microscopic rounding differences even when the logic is correct. pytest.approx(10.0, abs=0.01) asserts that the result is within ±0.01 of 10.0, which correctly passes for floating point results while still catching real logic errors.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">How does conftest.py work and why put fixtures there instead of in each test file?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">conftest.py is a special pytest file automatically discovered and loaded before any tests run. Fixtures defined there are available to all test files in the same directory without any imports — pytest injects them by matching the fixture name to the test function's parameter name. I put shared fixtures like base_state and mock_yfinance_data there because they're used across multiple test files. Duplicating them in each file would violate DRY and mean updating the same fixture in multiple places when the State schema changes.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">How would you test the LLM-driven orchestrator from Day 10 given non-deterministic LLM output?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">I'd test around the LLM, not through it. Unit tests would mock the LLM's response to return a known tool call decision and verify the tool execution logic works correctly. For the actual LLM behavior, I'd use contract tests — run a small set of representative queries with the real LLM and assert outputs satisfy structural constraints: recommendation is in BUY/HOLD/SELL, confidence is between 0 and 1, the response is non-empty. This tests "LLM integration is working" without requiring deterministic outputs.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTube -->
+  <div class="section">
+    <div class="section-label">
+      <span class="tag">REFERENCES</span>
+      <h2>YouTube Resources</h2>
+    </div>
+    <div class="yt-links">
+      <a class="yt-link" href="https://www.youtube.com/watch?v=cHYq1MRoyI0" target="_blank"><span class="yt-icon">▶</span> pytest Crash Course</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=6tNS--WetLI" target="_blank"><span class="yt-icon">▶</span> Mocking in Python</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=Lfdxw4ScbRg" target="_blank"><span class="yt-icon">▶</span> Testing FastAPI Apps</a>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div class="section">
+    <div class="checklist">
+      <h3>✅ DAY 13 CHECKLIST</h3>
+      <div class="check-grid">
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood why agent testing is uniquely challenging</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood Unit vs Integration vs End-to-End tests</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood mocking — flight simulator analogy</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood pytest fixtures, parametrize, and approx</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>pytest + pytest-asyncio + httpx + pytest-mock installed</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>tests/ folder + conftest.py created</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>test_price_agent.py — unit + async node tests</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>test_risk_agent.py — math validation tests</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>test_orchestrator.py — ticker validation + parametrize</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>test_state_flow.py — state integrity tests</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>test_api.py — FastAPI endpoint tests with TestClient</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>pytest.ini created with asyncio_mode and markers</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>pytest ran successfully — all tests passed</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Ran pytest -v to see individual test names</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Can explain all 6 interview questions confidently</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleConcept(head) { head.parentElement.classList.toggle('open'); }
+  function toggleQA(item) { item.classList.toggle('open'); }
+  function switchTab(btn, targetId) {
+    const nav  = btn.closest('.tab-nav');
+    const tabs = btn.closest('.tabs');
+    nav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tabs.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(targetId).classList.add('active');
+  }
+  function toggleCheck(item) {
+    item.classList.toggle('checked');
+    item.querySelector('.check-box').textContent = item.classList.contains('checked') ? '✓' : '';
+  }
+</script>
+</body>
+</html>

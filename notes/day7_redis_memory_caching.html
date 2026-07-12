@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stock Analysis Agent — Day 7</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f14;
+    --surface:   #13161d;
+    --card:      #1a1e29;
+    --border:    #252a38;
+
+    --day7:      #ff3b5c;
+    --day7-dim:  rgba(255,59,92,0.12);
+    --day7-glow: rgba(255,59,92,0.22);
+
+    --green:     #00e5a0;
+    --yellow:    #ffd166;
+    --cyan:      #00c2ff;
+    --orange:    #ff6b35;
+
+    --text:      #e8eaf2;
+    --muted:     #7a8099;
+    --faint:     #3a3f55;
+
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+    --display: 'Syne', sans-serif;
+
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(13,15,20,0.88); backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border); padding: 0 32px;
+    display: flex; align-items: center; height: 56px;
+  }
+  .nav-brand { font-family: var(--display); font-size: 16px; letter-spacing: 0.04em; color: var(--text); margin-right: auto; display: flex; align-items: center; gap: 8px; }
+  .nav-brand span { color: var(--day7); }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links a { text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 6px; transition: background 0.2s, color 0.2s; color: var(--muted); }
+  .nav-links a:hover { background: var(--card); color: var(--text); }
+  .nav-links a.d7 { color: var(--day7); }
+
+  .hero { padding: 72px 32px 56px; max-width: 900px; margin: 0 auto; text-align: center; }
+  .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--muted); background: var(--card); border: 1px solid var(--border); border-radius: 99px; padding: 5px 14px; margin-bottom: 28px; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--day7); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .hero h1 { font-family: var(--display); font-size: clamp(30px, 5vw, 50px); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; color: var(--text); margin-bottom: 20px; }
+  .hero h1 .accent { color: var(--day7); }
+  .hero-sub { font-size: 16px; color: var(--muted); max-width: 580px; margin: 0 auto 44px; }
+
+  .memory-vis { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; margin-top: 32px; }
+  .mem-box { display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 26px; min-width: 140px; }
+  .mem-box .icon { font-size: 26px; }
+  .mem-box .label { font-family: var(--mono); font-size: 12px; color: var(--text); font-weight: 600; }
+  .mem-box .sub { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .mem-box.redis { border-color: var(--day7); box-shadow: 0 0 22px var(--day7-glow); }
+  .mem-connector { font-size: 22px; color: var(--faint); }
+
+  .container { max-width: 940px; margin: 0 auto; padding: 0 32px 80px; }
+  .section { margin-bottom: 40px; }
+  .section-label { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-label .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 4px; }
+  .section-label h2 { font-family: var(--display); font-size: 19px; font-weight: 700; }
+
+  .goal-card { background: var(--card); border: 1px solid rgba(255,59,92,0.3); border-radius: var(--radius-lg); padding: 24px 28px; margin-bottom: 36px; box-shadow: 0 0 30px var(--day7-glow); }
+  .goal-card h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; color: var(--day7); margin-bottom: 14px; }
+  .goal-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .goal-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+  .goal-list li::before { content: '→'; font-family: var(--mono); font-size: 13px; color: var(--day7); flex-shrink: 0; margin-top: 2px; }
+
+  .concept { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 16px; }
+  .concept-head { display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: background 0.2s; }
+  .concept-head:hover { background: rgba(255,255,255,0.02); }
+  .concept-num { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; flex-shrink: 0; background: var(--day7-dim); color: var(--day7); }
+  .concept-head h3 { font-size: 16px; font-weight: 600; flex: 1; }
+  .chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; }
+  .concept.open .chevron { transform: rotate(180deg); }
+  .concept-body { display: none; padding: 20px 24px 24px; }
+  .concept.open .concept-body { display: block; }
+
+  .analogy { background: var(--surface); border-left: 3px solid var(--yellow); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin: 16px 0; font-size: 14px; }
+  .analogy strong.label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--yellow); margin-bottom: 10px; }
+
+  .code-wrap { background: #0a0c11; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 14px 0; }
+  .code-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .code-bar .filename { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .code-bar .lang { font-family: var(--mono); font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.1em; }
+  pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.65; padding: 18px 20px; overflow-x: auto; color: #c9d1e8; tab-size: 4; white-space: pre; }
+  .cm { color: #5c6680; } .ck { color: var(--day7); } .cs { color: #86e1a0; } .cn { color: var(--yellow); } .cf { color: var(--cyan); } .cp { color: var(--orange); }
+
+  .compare-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .compare-table th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-align: left; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .compare-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .compare-table tr:last-child td { border-bottom: none; }
+
+  .vs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  @media(max-width:600px) { .vs-grid { grid-template-columns: 1fr; } }
+  .vs-card { border-radius: var(--radius-lg); padding: 20px; border: 1px solid var(--border); }
+  .vs-card.cabinet { background: rgba(122,128,153,0.06); }
+  .vs-card.whiteboard { background: var(--day7-dim); border-color: rgba(255,59,92,0.3); }
+  .vs-card .vs-icon { font-size: 26px; margin-bottom: 8px; }
+  .vs-card h4 { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .vs-card.whiteboard h4 { color: var(--day7); }
+  .vs-card ul { list-style: none; padding: 0; }
+  .vs-card li { font-size: 13px; color: var(--muted); margin-bottom: 6px; padding-left: 0; }
+
+  .ttl-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .ttl-table th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-align: left; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .ttl-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .ttl-table tr:last-child td { border-bottom: none; }
+  .ttl-badge { font-family: var(--mono); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 99px; display: inline-block; }
+  .ttl-badge.fast { background: rgba(255,77,106,0.12); color: #ff4d6a; }
+  .ttl-badge.med { background: rgba(255,209,102,0.12); color: var(--yellow); }
+  .ttl-badge.slow { background: rgba(0,229,160,0.12); color: var(--green); }
+
+  .cache-flow { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin: 18px 0; }
+  .cache-flow-title { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 18px; }
+  .cf-step { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card); margin-bottom: 8px; }
+  .cf-step .cf-icon { font-size: 18px; flex-shrink: 0; }
+  .cf-step .cf-text { font-size: 13px; flex: 1; }
+  .cf-step .cf-tag { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 99px; flex-shrink: 0; }
+  .cf-step.hit { border-color: rgba(0,229,160,0.3); }
+  .cf-step.hit .cf-tag { background: rgba(0,229,160,0.15); color: var(--green); }
+  .cf-step.miss { border-color: rgba(255,59,92,0.3); }
+  .cf-step.miss .cf-tag { background: rgba(255,59,92,0.15); color: var(--day7); }
+
+  .timeline-vis { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin: 18px 0; }
+  .tl-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-family: var(--mono); font-size: 12px; }
+  .tl-time { color: var(--muted); width: 70px; flex-shrink: 0; }
+  .tl-bar { flex: 1; height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 11px; font-weight: 600; }
+  .tl-bar.slow { background: rgba(255,59,92,0.15); color: var(--day7); border: 1px solid rgba(255,59,92,0.3); width: 100%; }
+  .tl-bar.fast { background: rgba(0,229,160,0.15); color: var(--green); border: 1px solid rgba(0,229,160,0.3); width: 8%; min-width: 90px; }
+
+  .tabs { margin-bottom: 28px; }
+  .tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 22px; overflow-x: auto; }
+  .tab-btn { font-family: var(--sans); font-size: 13px; font-weight: 500; padding: 10px 18px; background: none; border: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s; white-space: nowrap; margin-bottom: -1px; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--day7); border-bottom-color: var(--day7); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .terminal { background: #060708; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 16px 0; }
+  .terminal-bar { display: flex; gap: 6px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f57; } .terminal-dot.yellow { background: #febc2e; } .terminal-dot.green { background: #28c840; }
+  .terminal pre { color: #8fdb9a; font-size: 12px; padding: 16px 20px; }
+
+  .qa-list { display: flex; flex-direction: column; gap: 10px; }
+  .qa-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .qa-q { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px; cursor: pointer; user-select: none; transition: background 0.2s; }
+  .qa-q:hover { background: rgba(255,255,255,0.02); }
+  .qa-num { font-family: var(--mono); font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 2px; padding: 2px 8px; border-radius: 4px; background: var(--day7-dim); color: var(--day7); }
+  .qa-qtext { font-size: 14px; font-weight: 500; flex: 1; }
+  .qa-chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; margin-left: auto; flex-shrink: 0; }
+  .qa-item.open .qa-chevron { transform: rotate(180deg); }
+  .qa-a { display: none; padding: 14px 20px 16px 52px; font-size: 14px; color: #b0bbd4; line-height: 1.7; border-top: 1px solid var(--border); }
+  .qa-item.open .qa-a { display: block; }
+
+  .checklist { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+  .checklist h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 16px; }
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media(max-width:600px) { .check-grid { grid-template-columns: 1fr; } }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; padding: 6px 0; transition: color 0.2s; }
+  .check-item.checked { color: var(--text); }
+  .check-box { width: 16px; height: 16px; border: 1px solid var(--faint); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; transition: background 0.2s, border-color 0.2s; font-size: 10px; }
+  .check-item.checked .check-box { background: var(--day7); border-color: var(--day7); color: #000; }
+
+  .yt-links { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+  .yt-link { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; text-decoration: none; font-size: 13px; color: var(--text); transition: border-color 0.2s, background 0.2s; }
+  .yt-link:hover { border-color: var(--day7); background: var(--day7-dim); }
+  .yt-icon { color: var(--day7); font-size: 15px; }
+
+  .callout { border-radius: var(--radius); padding: 16px 20px; margin: 14px 0; font-size: 14px; }
+  .callout.info { background: var(--day7-dim); border: 1px solid rgba(255,59,92,0.3); color: #ffb3c1; }
+  .callout strong { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; display: block; margin-bottom: 6px; color: var(--day7); }
+
+  code { font-family: var(--mono); font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; color: var(--day7); }
+  p { margin-bottom: 12px; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; font-size: 14px; }
+  strong { color: var(--text); font-weight: 600; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">⬡ <span>Stock</span>Agent</div>
+  <div class="nav-links">
+    <a href="#concepts" class="d7">Concepts</a>
+    <a href="#code" class="d7">Code</a>
+    <a href="#interview" class="d7">Interview</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">
+    <span class="dot"></span>
+    LangGraph Agent Series · Day 7
+  </div>
+  <h1>
+    Redis <span class="accent">Memory</span><br/>
+    + Conversation State + Caching
+  </h1>
+  <p class="hero-sub">
+    Give your agent system a memory. Cache expensive calls, remember
+    conversations, and let users ask follow-up questions naturally.
+  </p>
+
+  <div class="memory-vis">
+    <div class="mem-box">
+      <span class="icon">🧠</span>
+      <span class="label">LangGraph State</span>
+      <span class="sub">dies after invoke()</span>
+    </div>
+    <div class="mem-connector">+</div>
+    <div class="mem-box redis">
+      <span class="icon">⚡</span>
+      <span class="label">Redis</span>
+      <span class="sub">persists across requests</span>
+    </div>
+    <div class="mem-connector">=</div>
+    <div class="mem-box">
+      <span class="icon">💬</span>
+      <span class="label">Follow-ups Work</span>
+      <span class="sub">+ free re-fetches</span>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+
+  <div class="goal-card">
+    <h3>🎯 BY END OF TODAY</h3>
+    <ul class="goal-list">
+      <li>Understand what Redis is and why agent systems need memory</li>
+      <li>Understand Short-term vs Long-term memory in agents</li>
+      <li>Understand Caching and why it matters for cost + speed</li>
+      <li>Build Redis integration for your stock analysis system</li>
+      <li>Implement conversation history so users can ask follow-up questions</li>
+    </ul>
+  </div>
+
+  <div class="section" id="concepts">
+    <div class="section-label">
+      <span class="tag">CONCEPTS</span>
+      <h2>Core Ideas — Day 7</h2>
+    </div>
+
+    <div class="concept open">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C01</span>
+        <h3>Why Do Agents Need Memory?</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — TALKING TO SOMEONE WITH SEVERE SHORT-TERM MEMORY LOSS</strong>
+          You: "What's your favorite stock?" → Them: "Tesla, I love their innovation."<br/>
+          You: "Why do you like it?" → Them: "Like what? I don't know what you're referring to."<br/><br/>
+          Frustrating — every interaction starts from zero. <strong>That's exactly how your current LangGraph system behaves.</strong>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">the_problem.py</span><span class="lang">python</span></div>
+          <pre>final_state = graph.<span class="cf">invoke</span>(initial_state)
+<span class="cm"># Once this returns, the state is GONE</span>
+<span class="cm"># Next request about AAPL starts completely fresh</span>
+<span class="cm"># Doesn't remember previous analysis, conversation, or context</span></pre>
+        </div>
+
+        <div class="cache-flow">
+          <div class="cache-flow-title">WITHOUT MEMORY vs WITH MEMORY</div>
+          <div class="cf-step miss">
+            <span class="cf-icon">😶</span>
+            <span class="cf-text">User: "What was the RSI again?" → System: "I need a ticker to analyze..."</span>
+            <span class="cf-tag">FORGOT</span>
+          </div>
+          <div class="cf-step hit">
+            <span class="cf-icon">💬</span>
+            <span class="cf-text">User: "What was the RSI again?" → System looks up Redis → "RSI was 58.4, neutral momentum"</span>
+            <span class="cf-tag">REMEMBERED</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C02</span>
+        <h3>What is Redis?</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — WHITEBOARD VS FILING CABINET</strong>
+          A filing cabinet (PostgreSQL) is organized and permanent, but slower. A whiteboard (Redis) is quick to write and read, temporary, and lives in RAM instead of on disk — about 1000× faster access.
+        </div>
+
+        <div class="vs-grid">
+          <div class="vs-card cabinet">
+            <div class="vs-icon">🗄️</div>
+            <h4>Filing Cabinet — PostgreSQL</h4>
+            <ul>
+              <li>✓ Organized, permanent records</li>
+              <li>✓ Good for complex relationships</li>
+              <li>✓ Access time: milliseconds</li>
+            </ul>
+          </div>
+          <div class="vs-card whiteboard">
+            <div class="vs-icon">⚡</div>
+            <h4>Whiteboard — Redis</h4>
+            <ul>
+              <li>✓ "What are we working on RIGHT NOW"</li>
+              <li>✓ Data lives in RAM, not disk</li>
+              <li>✓ Access time: microseconds</li>
+            </ul>
+          </div>
+        </div>
+
+        <p><strong>Redis = Remote Dictionary Server.</strong> Essentially a giant, super-fast key-value dictionary in memory.</p>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">redis_mental_model.py</span><span class="lang">python</span></div>
+          <pre><span class="cm"># Redis is basically this, but distributed and persistent:</span>
+redis_data = {
+    <span class="cs">"user_123_last_ticker"</span>:     <span class="cs">"AAPL"</span>,
+    <span class="cs">"user_123_conversation"</span>:     [...],
+    <span class="cs">"AAPL_analysis_cache"</span>:       {...}
+}</pre>
+        </div>
+
+        <table class="compare-table">
+          <thead><tr><th>Feature</th><th>Python dict</th><th>Redis</th></tr></thead>
+          <tbody>
+            <tr><td>Survives restart</td><td>❌ Dies</td><td>✅ Persists to disk periodically</td></tr>
+            <tr><td>Cross-process access</td><td>❌ Single process only</td><td>✅ Any connecting process/server</td></tr>
+            <tr><td>Shared across workers</td><td>❌ No</td><td>✅ Multiple FastAPI workers share data</td></tr>
+            <tr><td>Auto-expiration</td><td>❌ No</td><td>✅ Built-in TTL</td></tr>
+            <tr><td>Speed</td><td>Fast (same process)</td><td>Extremely fast — sub-millisecond</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C03</span>
+        <h3>Short-Term vs Long-Term Memory</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — HOW YOUR BRAIN HANDLES MEMORY</strong>
+          <strong>Short-term (working memory):</strong> "What did they just say 2 sentences ago?" — disappears after the conversation ends, limited capacity.<br/>
+          <strong>Long-term:</strong> "What's my friend's birthday?" — persists for years, larger capacity but slower to search.
+        </div>
+
+        <div class="vs-grid">
+          <div class="vs-card cabinet">
+            <div class="vs-icon">💬</div>
+            <h4>Short-Term — Conversation Memory</h4>
+            <ul>
+              <li>Current conversation's context</li>
+              <li>"What ticker did we just discuss?"</li>
+              <li>Expires after ~1 hour of inactivity</li>
+              <li>Key: <code>conversation:{session_id}</code></li>
+            </ul>
+          </div>
+          <div class="vs-card whiteboard">
+            <div class="vs-icon">📦</div>
+            <h4>Long-Term — Cache</h4>
+            <ul>
+              <li>Reusable data that doesn't change often</li>
+              <li>"AAPL's price 5 minutes ago" (no refetch needed)</li>
+              <li>Expires based on data freshness</li>
+              <li>Key: <code>cache:price:{ticker}</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">ttl_examples.py</span><span class="lang">python</span></div>
+          <pre><span class="cm"># Short-term: conversation context</span>
+redis.<span class="cf">set</span>(<span class="cs">f"conversation:{session_id}"</span>, json.<span class="cf">dumps</span>(history), <span class="cp">ex</span>=<span class="cn">3600</span>)
+<span class="cm"># ex=3600 → expires in 3600 seconds = 1 hour</span>
+
+<span class="cm"># Long-term: cached analysis data</span>
+redis.<span class="cf">set</span>(<span class="cs">f"cache:price:{ticker}"</span>, json.<span class="cf">dumps</span>(price_data), <span class="cp">ex</span>=<span class="cn">60</span>)
+<span class="cm"># ex=60 → expires in 60 seconds (price changes fast)</span>
+
+redis.<span class="cf">set</span>(<span class="cs">f"cache:news:{ticker}"</span>, json.<span class="cf">dumps</span>(news_data), <span class="cp">ex</span>=<span class="cn">900</span>)
+<span class="cm"># ex=900 → expires in 900 seconds = 15 minutes (news changes slower)</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C04</span>
+        <h3>Caching and Why It Matters</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — ORDERING FOOD AT A RESTAURANT YOU'VE VISITED BEFORE</strong>
+          First visit: waiter explains the entire menu (slow, 5 minutes). Second visit same day: "I'll have what I had last time" (fast, 5 seconds) — you already know the menu.<br/><br/>
+          <strong>Caching = storing the result of an expensive operation so you don't redo it.</strong>
+        </div>
+
+        <div class="timeline-vis">
+          <div style="font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 14px; letter-spacing: 0.1em;">WITHOUT CACHING — TWO USERS, SAME TICKER, 5 SECONDS APART</div>
+          <div class="tl-row">
+            <span class="tl-time">2:00:00</span>
+            <div class="tl-bar slow">User A → yFinance + Tavily + LLaMA×3 → 8s, full API cost</div>
+          </div>
+          <div class="tl-row">
+            <span class="tl-time">2:00:05</span>
+            <div class="tl-bar slow">User B → SAME calls AGAIN → another 8s, MORE API cost (wasteful!)</div>
+          </div>
+
+          <div style="font-family: var(--mono); font-size: 10px; color: var(--muted); margin: 20px 0 14px; letter-spacing: 0.1em;">WITH CACHING — SAME SCENARIO</div>
+          <div class="tl-row">
+            <span class="tl-time">2:00:00</span>
+            <div class="tl-bar slow">User A → fetches everything, SAVES to Redis (60s expiry) → 8s</div>
+          </div>
+          <div class="tl-row">
+            <span class="tl-time">2:00:05</span>
+            <div class="tl-bar fast">User B → Redis HIT → 0.01s, $0 cost</div>
+          </div>
+        </div>
+
+        <div class="cache-flow">
+          <div class="cache-flow-title">CACHE HIT vs CACHE MISS</div>
+          <div class="cf-step hit">
+            <span class="cf-icon">✅</span>
+            <span class="cf-text">Cache HIT — data found in Redis → return immediately (fast, free)</span>
+            <span class="cf-tag">HIT</span>
+          </div>
+          <div class="cf-step miss">
+            <span class="cf-icon">❌</span>
+            <span class="cf-text">Cache MISS — data not in Redis → fetch fresh, then save to Redis</span>
+            <span class="cf-tag">MISS</span>
+          </div>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">cache_pattern.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">def</span> <span class="cf">get_price_with_cache</span>(ticker: str):
+    cache_key = <span class="cs">f"cache:price:{ticker}"</span>
+
+    <span class="cm"># Try cache first</span>
+    cached = redis_client.<span class="cf">get</span>(cache_key)
+    <span class="ck">if</span> cached:
+        <span class="cf">print</span>(<span class="cs">"✅ Cache HIT"</span>)
+        <span class="ck">return</span> json.<span class="cf">loads</span>(cached)
+
+    <span class="cm"># Cache miss — fetch fresh data</span>
+    <span class="cf">print</span>(<span class="cs">"❌ Cache MISS — fetching fresh"</span>)
+    price_data = <span class="cf">fetch_from_yfinance</span>(ticker)
+
+    <span class="cm"># Save to cache for next time</span>
+    redis_client.<span class="cf">set</span>(cache_key, json.<span class="cf">dumps</span>(price_data), <span class="cp">ex</span>=<span class="cn">60</span>)
+    <span class="ck">return</span> price_data</pre>
+        </div>
+
+        <table class="ttl-table">
+          <thead><tr><th>Data Type</th><th>TTL</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Price</td><td><span class="ttl-badge fast">60s</span></td><td>Moves every second — must stay fresh</td></tr>
+            <tr><td>News</td><td><span class="ttl-badge med">15 min</span></td><td>Doesn't update that frequently</td></tr>
+            <tr><td>Risk metrics</td><td><span class="ttl-badge slow">30 min</span></td><td>Volatility/beta are stable over short windows</td></tr>
+            <tr><td>Full report</td><td><span class="ttl-badge med">2 min</span></td><td>Balance freshness with reuse</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="code">
+    <div class="section-label">
+      <span class="tag">CODE</span>
+      <h2>Build Redis Integration</h2>
+    </div>
+
+    <div class="callout info">
+      <strong>STEP 1 — INSTALL & RUN REDIS LOCALLY</strong>
+      <code>docker run -d --name redis-stock -p 6379:6379 redis:latest</code> (recommended) or <code>brew install redis</code> / <code>apt-get install redis-server</code>. Test with <code>redis-cli ping</code> → should respond <code>PONG</code>.
+    </div>
+
+    <div class="tabs">
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab(this,'t-client')">redis_client.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-cache')">cache.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-price')">price_agent.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-conv')">conversation.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-run')">run_day7.py</button>
+      </div>
+
+      <div id="t-client" class="tab-content active">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">memory/redis_client.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> redis
+<span class="cm"># redis library — Python client for talking to Redis server</span>
+
+<span class="ck">import</span> json
+<span class="ck">from</span> core.config <span class="ck">import</span> config
+
+<span class="cm"># Create a Redis connection</span>
+redis_client = redis.<span class="cf">from_url</span>(
+    config.REDIS_URL,
+    <span class="cp">decode_responses</span>=<span class="ck">True</span>
+    <span class="cm"># decode_responses=True → Redis returns strings, not bytes</span>
+    <span class="cm"># Without this: b"AAPL" instead of "AAPL" — annoying to work with</span>
+)
+
+<span class="ck">def</span> <span class="cf">test_connection</span>():
+    <span class="cs">"""Quick test to verify Redis is reachable"""</span>
+    <span class="ck">try</span>:
+        redis_client.<span class="cf">ping</span>()
+        <span class="cm"># .ping() sends a PING command, Redis responds PONG if alive</span>
+        <span class="cf">print</span>(<span class="cs">"✅ Redis connected successfully"</span>)
+        <span class="ck">return</span> <span class="ck">True</span>
+    <span class="ck">except</span> redis.ConnectionError:
+        <span class="cf">print</span>(<span class="cs">"❌ Redis connection failed — is Redis running?"</span>)
+        <span class="ck">return</span> <span class="ck">False</span></pre>
+        </div>
+      </div>
+
+      <div id="t-cache" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">memory/cache.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> json
+<span class="ck">from</span> memory.redis_client <span class="ck">import</span> redis_client
+
+<span class="cm"># Different data types need different expiration times</span>
+CACHE_TTL = {
+    <span class="cs">"price"</span>:       <span class="cn">60</span>,     <span class="cm"># 60 seconds — price moves fast</span>
+    <span class="cs">"news"</span>:        <span class="cn">900</span>,    <span class="cm"># 15 minutes — news doesn't change that fast</span>
+    <span class="cs">"risk"</span>:        <span class="cn">1800</span>,   <span class="cm"># 30 minutes — risk metrics are stable</span>
+    <span class="cs">"full_report"</span>: <span class="cn">120</span>,    <span class="cm"># 2 minutes — full analysis cache</span>
+}
+<span class="cm"># TTL = Time To Live — how long data stays valid in cache</span>
+
+<span class="ck">def</span> <span class="cf">get_cached</span>(key_type: str, ticker: str):
+    <span class="cs">"""Returns parsed data if cache HIT, None if cache MISS"""</span>
+    cache_key = <span class="cs">f"cache:{key_type}:{ticker}"</span>
+    <span class="cm"># e.g. "cache:price:AAPL"</span>
+
+    cached_value = redis_client.<span class="cf">get</span>(cache_key)
+    <span class="cm"># .get() returns None if key doesn't exist or has expired</span>
+
+    <span class="ck">if</span> cached_value:
+        <span class="cf">print</span>(<span class="cs">f"✅ Cache HIT: {cache_key}"</span>)
+        <span class="ck">return</span> json.<span class="cf">loads</span>(cached_value)
+        <span class="cm"># json.loads() converts stored JSON string back to Python dict</span>
+
+    <span class="cf">print</span>(<span class="cs">f"❌ Cache MISS: {cache_key}"</span>)
+    <span class="ck">return</span> <span class="ck">None</span>
+
+
+<span class="ck">def</span> <span class="cf">set_cached</span>(key_type: str, ticker: str, data: dict):
+    <span class="cs">"""Save data to cache with appropriate expiration"""</span>
+    cache_key = <span class="cs">f"cache:{key_type}:{ticker}"</span>
+    ttl = CACHE_TTL.<span class="cf">get</span>(key_type, <span class="cn">300</span>)
+    <span class="cm"># .get() with default 300 (5 min) if key_type not in our dict</span>
+
+    redis_client.<span class="cf">set</span>(
+        cache_key,
+        json.<span class="cf">dumps</span>(data),
+        <span class="cm"># json.dumps() converts Python dict → JSON string</span>
+        <span class="cm"># Redis can only store strings, not Python objects directly</span>
+        <span class="cp">ex</span>=ttl
+        <span class="cm"># ex = expiration in seconds — auto-deleted after ttl seconds</span>
+    )
+    <span class="cf">print</span>(<span class="cs">f"💾 Cached: {cache_key} (expires in {ttl}s)"</span>)</pre>
+        </div>
+      </div>
+
+      <div id="t-price" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">agents/price_agent.py — updated with caching</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> yfinance <span class="ck">as</span> yf
+<span class="ck">from</span> core.state <span class="ck">import</span> StockAnalysisState
+<span class="ck">from</span> memory.cache <span class="ck">import</span> get_cached, set_cached
+<span class="cm"># ← NEW imports</span>
+
+<span class="ck">def</span> <span class="cf">price_agent_node</span>(state: StockAnalysisState) -> dict:
+    ticker = state[<span class="cs">"ticker"</span>]
+    <span class="cf">print</span>(<span class="cs">f"📈 Price Agent: Fetching data for {ticker}..."</span>)
+
+    <span class="cm"># ── STEP 1: Check cache first ────────────────────────</span>
+    cached_data = <span class="cf">get_cached</span>(<span class="cs">"price"</span>, ticker)
+
+    <span class="ck">if</span> cached_data:
+        <span class="cm"># Cache HIT — return immediately, skip yFinance call entirely</span>
+        <span class="cf">print</span>(<span class="cs">f"⚡ Using cached price data for {ticker}"</span>)
+        <span class="ck">return</span> {
+            <span class="cs">"current_price"</span>:    cached_data[<span class="cs">"current_price"</span>],
+            <span class="cs">"price_change_pct"</span>: cached_data[<span class="cs">"price_change_pct"</span>],
+            <span class="cs">"rsi"</span>:              cached_data[<span class="cs">"rsi"</span>],
+            <span class="cs">"errors"</span>: []
+        }
+
+    <span class="cm"># ── STEP 2: Cache MISS — fetch fresh data ────────────</span>
+    <span class="ck">try</span>:
+        stock = yf.<span class="cf">Ticker</span>(ticker)
+        hist  = stock.<span class="cf">history</span>(<span class="cp">period</span>=<span class="cs">"1mo"</span>, <span class="cp">interval</span>=<span class="cs">"1d"</span>)
+
+        current_price     = <span class="cf">round</span>(<span class="cf">float</span>(hist[<span class="cs">"Close"</span>].<span class="cf">iloc</span>[-<span class="cn">1</span>]), <span class="cn">2</span>)
+        prev_price         = <span class="cf">float</span>(hist[<span class="cs">"Close"</span>].<span class="cf">iloc</span>[-<span class="cn">2</span>])
+        price_change_pct  = <span class="cf">round</span>(((current_price - prev_price) / prev_price) * <span class="cn">100</span>, <span class="cn">2</span>)
+
+        closes   = hist[<span class="cs">"Close"</span>]
+        delta    = closes.<span class="cf">diff</span>()
+        gain     = delta.<span class="cf">clip</span>(<span class="cp">lower</span>=<span class="cn">0</span>)
+        loss     = -delta.<span class="cf">clip</span>(<span class="cp">upper</span>=<span class="cn">0</span>)
+        avg_gain = gain.<span class="cf">rolling</span>(<span class="cp">window</span>=<span class="cn">14</span>).<span class="cf">mean</span>().<span class="cf">iloc</span>[-<span class="cn">1</span>]
+        avg_loss = loss.<span class="cf">rolling</span>(<span class="cp">window</span>=<span class="cn">14</span>).<span class="cf">mean</span>().<span class="cf">iloc</span>[-<span class="cn">1</span>]
+
+        rsi = <span class="cn">100.0</span> <span class="ck">if</span> avg_loss == <span class="cn">0</span> <span class="ck">else</span> <span class="cf">round</span>(<span class="cn">100</span> - (<span class="cn">100</span> / (<span class="cn">1</span> + avg_gain/avg_loss)), <span class="cn">2</span>)
+
+        result = {<span class="cs">"current_price"</span>: current_price, <span class="cs">"price_change_pct"</span>: price_change_pct, <span class="cs">"rsi"</span>: rsi}
+
+        <span class="cm"># ── STEP 3: Save to cache for next request ──────────</span>
+        <span class="cf">set_cached</span>(<span class="cs">"price"</span>, ticker, result)
+
+        <span class="cf">print</span>(<span class="cs">f"✅ Fresh data: ${current_price} | {price_change_pct}% | RSI: {rsi}"</span>)
+        <span class="ck">return</span> {**result, <span class="cs">"errors"</span>: []}
+
+    <span class="ck">except</span> Exception <span class="ck">as</span> e:
+        <span class="cf">print</span>(<span class="cs">f"❌ Price Agent Error: {e}"</span>)
+        <span class="ck">return</span> {<span class="cs">"current_price"</span>: <span class="ck">None</span>, <span class="cs">"price_change_pct"</span>: <span class="ck">None</span>,
+                <span class="cs">"rsi"</span>: <span class="ck">None</span>, <span class="cs">"errors"</span>: [<span class="cs">f"Price Agent failed: {str(e)}"</span>]}</pre>
+        </div>
+      </div>
+
+      <div id="t-conv" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">memory/conversation.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> json
+<span class="ck">from</span> datetime <span class="ck">import</span> datetime
+<span class="ck">from</span> memory.redis_client <span class="ck">import</span> redis_client
+
+CONVERSATION_TTL = <span class="cn">3600</span>  <span class="cm"># 1 hour of inactivity = conversation expires</span>
+
+<span class="ck">def</span> <span class="cf">save_conversation_turn</span>(session_id: str, ticker: str, report: dict):
+    <span class="cs">"""Saves a single conversation turn so follow-up questions work"""</span>
+    conversation_key = <span class="cs">f"conversation:{session_id}"</span>
+
+    <span class="cm"># Get existing conversation history (or start fresh)</span>
+    existing = redis_client.<span class="cf">get</span>(conversation_key)
+    history  = json.<span class="cf">loads</span>(existing) <span class="ck">if</span> existing <span class="ck">else</span> []
+
+    history.<span class="cf">append</span>({
+        <span class="cs">"timestamp"</span>: datetime.<span class="cf">now</span>().<span class="cf">isoformat</span>(),
+        <span class="cs">"ticker"</span>:    ticker,
+        <span class="cs">"report_summary"</span>: {
+            <span class="cs">"recommendation"</span>: report.<span class="cf">get</span>(<span class="cs">"verdict"</span>, {}).<span class="cf">get</span>(<span class="cs">"recommendation"</span>),
+            <span class="cs">"confidence"</span>:     report.<span class="cf">get</span>(<span class="cs">"verdict"</span>, {}).<span class="cf">get</span>(<span class="cs">"confidence"</span>),
+            <span class="cs">"price"</span>:          report.<span class="cf">get</span>(<span class="cs">"market_data"</span>, {}).<span class="cf">get</span>(<span class="cs">"current_price"</span>),
+            <span class="cs">"rsi"</span>:            report.<span class="cf">get</span>(<span class="cs">"market_data"</span>, {}).<span class="cf">get</span>(<span class="cs">"rsi"</span>),
+        }
+    })
+
+    <span class="cm"># Keep only last 10 turns — prevent unlimited growth</span>
+    history = history[-<span class="cn">10</span>:]
+
+    redis_client.<span class="cf">set</span>(conversation_key, json.<span class="cf">dumps</span>(history), <span class="cp">ex</span>=CONVERSATION_TTL)
+    <span class="cf">print</span>(<span class="cs">f"💬 Saved conversation turn for session {session_id}"</span>)
+
+
+<span class="ck">def</span> <span class="cf">get_conversation_history</span>(session_id: str) -> list:
+    <span class="cs">"""Retrieves conversation history for follow-up handling"""</span>
+    existing = redis_client.<span class="cf">get</span>(<span class="cs">f"conversation:{session_id}"</span>)
+    <span class="ck">return</span> json.<span class="cf">loads</span>(existing) <span class="ck">if</span> existing <span class="ck">else</span> []
+
+
+<span class="ck">def</span> <span class="cf">get_last_ticker</span>(session_id: str) -> str | <span class="ck">None</span>:
+    <span class="cs">"""For follow-ups like 'what was the RSI?' without re-specifying ticker"""</span>
+    history = <span class="cf">get_conversation_history</span>(session_id)
+    <span class="ck">if</span> history:
+        <span class="ck">return</span> history[-<span class="cn">1</span>][<span class="cs">"ticker"</span>]
+        <span class="cm"># [-1] = most recent entry</span>
+    <span class="ck">return</span> <span class="ck">None</span></pre>
+        </div>
+      </div>
+
+      <div id="t-run" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">run_day7.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> json
+<span class="ck">from</span> agents.graph <span class="ck">import</span> build_graph
+<span class="ck">from</span> memory.redis_client <span class="ck">import</span> test_connection
+<span class="ck">from</span> memory.conversation <span class="ck">import</span> save_conversation_turn, get_conversation_history, get_last_ticker
+
+<span class="ck">def</span> <span class="cf">run_analysis_with_memory</span>(ticker: str, session_id: str = <span class="cs">"user_123"</span>):
+    graph = <span class="cf">build_graph</span>()
+    initial_state = { <span class="cs">"ticker"</span>: ticker, <span class="cs">"query_type"</span>: <span class="cs">"full"</span>, ... }
+
+    final_state = graph.<span class="cf">invoke</span>(initial_state)
+    report = json.<span class="cf">loads</span>(final_state.<span class="cf">get</span>(<span class="cs">"final_report"</span>, <span class="cs">"{}"</span>))
+
+    <span class="cf">save_conversation_turn</span>(session_id, ticker, report)
+    <span class="ck">return</span> report
+
+<span class="ck">def</span> <span class="cf">main</span>():
+    <span class="cf">print</span>(<span class="cs">"🧪 Testing Redis Connection"</span>)
+    <span class="cf">test_connection</span>()
+
+    <span class="cf">print</span>(<span class="cs">"TEST 1 — First request (cache MISS expected)"</span>)
+    report1 = <span class="cf">run_analysis_with_memory</span>(<span class="cs">"AAPL"</span>)
+
+    <span class="cf">print</span>(<span class="cs">"TEST 2 — Same ticker again (cache HIT expected)"</span>)
+    report2 = <span class="cf">run_analysis_with_memory</span>(<span class="cs">"AAPL"</span>)
+
+    <span class="cf">print</span>(<span class="cs">"TEST 3 — Checking conversation memory"</span>)
+    history = <span class="cf">get_conversation_history</span>(<span class="cs">"user_123"</span>)
+    <span class="ck">for</span> turn <span class="ck">in</span> history:
+        <span class="cf">print</span>(<span class="cs">f"  → {turn['ticker']}: {turn['report_summary']['recommendation']}"</span>)
+
+    <span class="cf">print</span>(<span class="cs">"TEST 4 — Follow-up question simulation"</span>)
+    last_ticker = <span class="cf">get_last_ticker</span>(<span class="cs">"user_123"</span>)
+    <span class="cf">print</span>(<span class="cs">f"System remembers last ticker was: {last_ticker}"</span>)
+
+<span class="ck">if</span> __name__ == <span class="cs">"__main__"</span>:
+    <span class="cf">main</span>()</pre>
+        </div>
+
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="terminal-dot red"></div>
+            <div class="terminal-dot yellow"></div>
+            <div class="terminal-dot green"></div>
+          </div>
+          <pre>🧪 Testing Redis Connection
+✅ Redis connected successfully
+
+=======================================================
+TEST 1 — First analysis request (cache MISS expected)
+=======================================================
+📈 Price Agent: Fetching data for AAPL...
+❌ Cache MISS: cache:price:AAPL
+✅ Fresh data: $189.3 | 1.2% | RSI: 58.4
+💾 Cached: cache:price:AAPL (expires in 60s)
+💬 Saved conversation turn for session user_123
+Recommendation: BUY
+
+=======================================================
+TEST 2 — Same ticker again (cache HIT expected for price)
+=======================================================
+📈 Price Agent: Fetching data for AAPL...
+✅ Cache HIT: cache:price:AAPL
+⚡ Using cached price data for AAPL
+Recommendation: BUY
+
+=======================================================
+TEST 3 — Checking conversation memory
+=======================================================
+Conversation has 2 turns:
+  → AAPL: BUY (RSI: 58.4)
+  → AAPL: BUY (RSI: 58.4)
+
+=======================================================
+TEST 4 — Follow-up question simulation
+=======================================================
+User asks: 'What was the RSI again?'
+System remembers last ticker was: AAPL
+System can answer without asking 'which stock?'</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="interview">
+    <div class="section-label">
+      <span class="tag">INTERVIEW</span>
+      <h2>Q&A — Day 7</h2>
+    </div>
+    <div class="qa-list">
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Why does an agent system need memory if LangGraph already has State?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">LangGraph's State only exists during a single graph.invoke() call — it's destroyed once the function returns. Memory via Redis persists across multiple separate invocations and even across server restarts. State is like working memory for one task; Redis memory is like a notebook that survives between tasks, enabling follow-up questions and avoiding redundant work.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What is Redis and why is it preferred over a regular database for this use case?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Redis is an in-memory key-value store, meaning data lives in RAM rather than on disk, making reads and writes extremely fast — sub-millisecond versus milliseconds for traditional databases. It's preferred here because our use case is temporary, fast-changing data — cached prices, recent conversations — not permanent records requiring complex queries or relationships, which is where a database like PostgreSQL would be better.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain the difference between short-term and long-term memory in your system.</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Short-term memory is conversation context — what ticker we just discussed, recent turns — stored with a 1-hour expiration tied to session_id. Long-term memory in this context is actually our cache layer — reusable computed data like price or news that doesn't need to be refetched repeatedly, with expiration tuned to how fast that data type changes, like 60 seconds for price versus 15 minutes for news.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What is a cache hit versus a cache miss, and how does TTL factor in?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">A cache hit means requested data is found in Redis and returned immediately without recomputing. A cache miss means the data isn't there or has expired, so we fetch fresh data and then store it in cache for next time. TTL, or Time To Live, controls how long cached data remains valid — I use different TTLs per data type since price data goes stale in 60 seconds while risk metrics remain valid for 30 minutes.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">How would caching reduce costs in a production deployment of this system?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Every uncached request calls yFinance, Tavily, and makes 3 separate LLaMA API calls. If 100 users ask about AAPL within the same minute, without caching that's 100 times the API costs and rate limit consumption. With a 60-second price cache and 15-minute news cache, only the first request actually hits external APIs — the other 99 get instant cached responses, dramatically reducing both cost and latency.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">What happens if Redis goes down? How resilient is your system?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">My cache functions use redis_client.get() which would raise a ConnectionError if Redis is unreachable. In production I would wrap cache calls in try/except blocks so a Redis outage degrades gracefully to cache misses — meaning slower responses since everything gets freshly fetched, but the system stays functional rather than crashing. Redis should be treated as a performance optimization, never a hard dependency for correctness.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">
+      <span class="tag">REFERENCES</span>
+      <h2>YouTube Resources</h2>
+    </div>
+    <div class="yt-links">
+      <a class="yt-link" href="https://www.youtube.com/watch?v=jgpVdJB2sKQ" target="_blank"><span class="yt-icon">▶</span> Redis Crash Course</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=U3RkDLtS7uY" target="_blank"><span class="yt-icon">▶</span> Caching Strategies Explained</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=hVrwQjVPGZ4" target="_blank"><span class="yt-icon">▶</span> LangGraph with Memory</a>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="checklist">
+      <h3>✅ DAY 7 CHECKLIST</h3>
+      <div class="check-grid">
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood why agents need memory beyond State</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood Redis — in-memory KV store, sub-ms access</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood Short-term vs Long-term memory</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood Cache Hit vs Cache Miss + TTL</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Redis installed and running (Docker or local)</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>redis-cli ping returned PONG</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>memory/redis_client.py created</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>memory/cache.py created — get/set_cached functions</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>price_agent.py updated — checks cache first</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>memory/conversation.py created</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>run_day7.py executed — saw MISS then HIT</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Saw conversation history with multiple turns</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood follow-up pattern via get_last_ticker()</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Can explain all 6 interview questions confidently</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleConcept(head) { head.parentElement.classList.toggle('open'); }
+  function toggleQA(item) { item.classList.toggle('open'); }
+  function switchTab(btn, targetId) {
+    const nav  = btn.closest('.tab-nav');
+    const tabs = btn.closest('.tabs');
+    nav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tabs.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(targetId).classList.add('active');
+  }
+  function toggleCheck(item) {
+    item.classList.toggle('checked');
+    item.querySelector('.check-box').textContent = item.classList.contains('checked') ? '✓' : '';
+  }
+</script>
+</body>
+</html>

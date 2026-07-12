@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stock Analysis Agent — Day 8</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f14; --surface: #13161d; --card: #1a1e29; --border: #252a38;
+    --day8: #06b6d4; --day8-dim: rgba(6,182,212,0.12); --day8-glow: rgba(6,182,212,0.22);
+    --green: #00e5a0; --yellow: #ffd166; --orange: #ff6b35; --red: #ff4d6a; --purple: #a78bfa;
+    --text: #e8eaf2; --muted: #7a8099; --faint: #3a3f55;
+    --mono: 'JetBrains Mono', monospace; --sans: 'Inter', sans-serif; --display: 'Syne', sans-serif;
+    --radius: 10px; --radius-lg: 16px;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  nav { position: sticky; top: 0; z-index: 100; background: rgba(13,15,20,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; height: 56px; }
+  .nav-brand { font-family: var(--display); font-size: 16px; letter-spacing: 0.04em; color: var(--text); margin-right: auto; display: flex; align-items: center; gap: 8px; }
+  .nav-brand span { color: var(--day8); }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links a { text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 6px; transition: background 0.2s, color 0.2s; color: var(--muted); }
+  .nav-links a:hover { background: var(--card); color: var(--text); }
+  .nav-links a.d8 { color: var(--day8); }
+
+  .hero { padding: 72px 32px 56px; max-width: 900px; margin: 0 auto; text-align: center; }
+  .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--muted); background: var(--card); border: 1px solid var(--border); border-radius: 99px; padding: 5px 14px; margin-bottom: 28px; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--day8); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .hero h1 { font-family: var(--display); font-size: clamp(30px,5vw,50px); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; color: var(--text); margin-bottom: 20px; }
+  .hero h1 .accent { color: var(--day8); }
+  .hero-sub { font-size: 16px; color: var(--muted); max-width: 580px; margin: 0 auto 44px; }
+
+  .endpoint-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 32px; }
+  .endpoint-pill { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; font-family: var(--mono); font-size: 12px; transition: transform 0.2s; }
+  .endpoint-pill:hover { transform: translateY(-2px); }
+  .method { font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+  .method.get { background: rgba(0,229,160,0.15); color: var(--green); }
+  .method.post { background: rgba(6,182,212,0.15); color: var(--day8); }
+  .path { color: var(--muted); }
+
+  .container { max-width: 940px; margin: 0 auto; padding: 0 32px 80px; }
+  .section { margin-bottom: 40px; }
+  .section-label { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-label .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 4px; }
+  .section-label h2 { font-family: var(--display); font-size: 19px; font-weight: 700; }
+
+  .goal-card { background: var(--card); border: 1px solid rgba(6,182,212,0.3); border-radius: var(--radius-lg); padding: 24px 28px; margin-bottom: 36px; box-shadow: 0 0 30px var(--day8-glow); }
+  .goal-card h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; color: var(--day8); margin-bottom: 14px; }
+  .goal-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .goal-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+  .goal-list li::before { content: '→'; font-family: var(--mono); font-size: 13px; color: var(--day8); flex-shrink: 0; margin-top: 2px; }
+
+  .concept { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 16px; }
+  .concept-head { display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: background 0.2s; }
+  .concept-head:hover { background: rgba(255,255,255,0.02); }
+  .concept-num { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; flex-shrink: 0; background: var(--day8-dim); color: var(--day8); }
+  .concept-head h3 { font-size: 16px; font-weight: 600; flex: 1; }
+  .chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; }
+  .concept.open .chevron { transform: rotate(180deg); }
+  .concept-body { display: none; padding: 20px 24px 24px; }
+  .concept.open .concept-body { display: block; }
+
+  .analogy { background: var(--surface); border-left: 3px solid var(--yellow); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin: 16px 0; font-size: 14px; }
+  .analogy strong.label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--yellow); margin-bottom: 10px; }
+
+  .code-wrap { background: #0a0c11; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 14px 0; }
+  .code-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .code-bar .filename { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .code-bar .lang { font-family: var(--mono); font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.1em; }
+  pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.65; padding: 18px 20px; overflow-x: auto; color: #c9d1e8; tab-size: 4; white-space: pre; }
+  .cm { color: #5c6680; } .ck { color: var(--day8); } .cs { color: #86e1a0; } .cn { color: var(--yellow); } .cf { color: var(--cyan, #22d3ee); } .cp { color: var(--orange); }
+
+  .compare-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .compare-table th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-align: left; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .compare-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .compare-table tr:last-child td { border-bottom: none; }
+
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 12px; margin: 16px 0; }
+  .status-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .status-card .s-code { font-family: var(--mono); font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .status-card .s-label { font-size: 12px; color: var(--muted); }
+  .s-code.s2 { color: var(--green); } .s-code.s4 { color: var(--yellow); } .s-code.s5 { color: var(--red); }
+
+  .tabs { margin-bottom: 28px; }
+  .tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 22px; overflow-x: auto; }
+  .tab-btn { font-family: var(--sans); font-size: 13px; font-weight: 500; padding: 10px 18px; background: none; border: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s; white-space: nowrap; margin-bottom: -1px; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--day8); border-bottom-color: var(--day8); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .terminal { background: #060708; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 16px 0; }
+  .terminal-bar { display: flex; gap: 6px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f57; } .terminal-dot.yellow { background: #febc2e; } .terminal-dot.green { background: #28c840; }
+  .terminal pre { color: #8fdb9a; font-size: 12px; padding: 16px 20px; }
+
+  /* ── SPECIAL BANNERS ── */
+  .banner { border-radius: var(--radius-lg); padding: 20px 24px; margin-bottom: 28px; display: flex; align-items: flex-start; gap: 14px; }
+  .banner.bugfix { background: rgba(255,77,106,0.08); border: 1px solid rgba(255,77,106,0.3); }
+  .banner.future { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.3); }
+  .banner-icon { font-size: 24px; flex-shrink: 0; }
+  .banner-content h3 { font-family: var(--display); font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .banner.bugfix h3 { color: var(--red); }
+  .banner.future h3 { color: var(--purple); }
+  .banner-content p { font-size: 13px; color: var(--muted); }
+
+  /* ── IMPROVEMENT CARD ── */
+  .improvement-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 16px; }
+  .improvement-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: background 0.2s; }
+  .improvement-head:hover { background: rgba(255,255,255,0.02); }
+  .improvement-label { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 4px; flex-shrink: 0; }
+  .improvement-label.bugfix { background: rgba(255,77,106,0.15); color: var(--red); }
+  .improvement-label.future { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .improvement-head h3 { font-size: 15px; font-weight: 600; flex: 1; }
+  .improvement-body { display: none; padding: 20px 24px 24px; }
+  .improvement-card.open .improvement-body { display: block; }
+  .improvement-card.open .chevron { transform: rotate(180deg); }
+
+  .pipeline-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  @media(max-width:600px) { .pipeline-compare { grid-template-columns: 1fr; } }
+  .pipe-col { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .pipe-col-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 12px; }
+  .pipe-col-title.full { color: var(--day8); }
+  .pipe-col-title.quick { color: var(--green); }
+  .pipe-step { font-family: var(--mono); font-size: 12px; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); margin-bottom: 5px; display: flex; justify-content: space-between; }
+  .pipe-step.active { border-color: rgba(6,182,212,0.4); }
+  .pipe-step.skipped { opacity: 0.3; text-decoration: line-through; }
+  .pipe-step .ps-tag { font-size: 10px; color: var(--muted); }
+
+  .qa-list { display: flex; flex-direction: column; gap: 10px; }
+  .qa-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .qa-q { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px; cursor: pointer; user-select: none; transition: background 0.2s; }
+  .qa-q:hover { background: rgba(255,255,255,0.02); }
+  .qa-num { font-family: var(--mono); font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 2px; padding: 2px 8px; border-radius: 4px; background: var(--day8-dim); color: var(--day8); }
+  .qa-qtext { font-size: 14px; font-weight: 500; flex: 1; }
+  .qa-chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; margin-left: auto; flex-shrink: 0; }
+  .qa-item.open .qa-chevron { transform: rotate(180deg); }
+  .qa-a { display: none; padding: 14px 20px 16px 52px; font-size: 14px; color: #b0bbd4; line-height: 1.7; border-top: 1px solid var(--border); }
+  .qa-item.open .qa-a { display: block; }
+
+  .checklist { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+  .checklist h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 16px; }
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media(max-width:600px) { .check-grid { grid-template-columns: 1fr; } }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; padding: 6px 0; transition: color 0.2s; }
+  .check-item.checked { color: var(--text); }
+  .check-box { width: 16px; height: 16px; border: 1px solid var(--faint); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; transition: background 0.2s, border-color 0.2s; font-size: 10px; }
+  .check-item.checked .check-box { background: var(--day8); border-color: var(--day8); color: #000; }
+
+  .yt-links { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+  .yt-link { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; text-decoration: none; font-size: 13px; color: var(--text); transition: border-color 0.2s, background 0.2s; }
+  .yt-link:hover { border-color: var(--day8); background: var(--day8-dim); }
+  .yt-icon { color: var(--red, #ff4d6a); font-size: 15px; }
+
+  .callout { border-radius: var(--radius); padding: 16px 20px; margin: 14px 0; font-size: 14px; }
+  .callout.info { background: var(--day8-dim); border: 1px solid rgba(6,182,212,0.3); color: #a5f3fc; }
+  .callout.warn { background: rgba(255,209,102,0.1); border: 1px solid rgba(255,209,102,0.3); color: var(--yellow); }
+  .callout strong { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; display: block; margin-bottom: 6px; }
+
+  /* ASGI comparison table */
+  .asgi-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .asgi-table th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-align: left; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .asgi-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .asgi-table tr:last-child td { border-bottom: none; }
+  .asgi-table td:first-child { font-family: var(--mono); font-size: 12px; color: var(--day8); }
+
+  code { font-family: var(--mono); font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; color: var(--day8); }
+  p { margin-bottom: 12px; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; font-size: 14px; }
+  strong { color: var(--text); font-weight: 600; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">⬡ <span>Stock</span>Agent</div>
+  <div class="nav-links">
+    <a href="#concepts" class="d8">Concepts</a>
+    <a href="#code" class="d8">Code</a>
+    <a href="#extras" class="d8">Fixes</a>
+    <a href="#interview" class="d8">Interview</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">
+    <span class="dot"></span>
+    LangGraph Agent Series · Day 8
+  </div>
+  <h1>
+    <span class="accent">FastAPI</span> Fundamentals<br/>
+    + REST API Design
+  </h1>
+  <p class="hero-sub">
+    Expose your multi-agent system as a live REST API.
+    Build endpoints, validate requests, and demo live with Swagger UI.
+  </p>
+
+  <div class="endpoint-row">
+    <div class="endpoint-pill"><span class="method get">GET</span><span class="path">/</span></div>
+    <div class="endpoint-pill"><span class="method get">GET</span><span class="path">/health</span></div>
+    <div class="endpoint-pill"><span class="method post">POST</span><span class="path">/analyze</span></div>
+    <div class="endpoint-pill"><span class="method get">GET</span><span class="path">/stocks/{ticker}/quick</span></div>
+  </div>
+</section>
+
+<div class="container">
+
+  <div class="goal-card">
+    <h3>🎯 BY END OF TODAY</h3>
+    <ul class="goal-list">
+      <li>Understand what REST APIs are and why they matter</li>
+      <li>Understand HTTP methods (GET, POST) and status codes</li>
+      <li>Understand FastAPI's core concepts — path operations, request/response models</li>
+      <li>Build a working FastAPI server exposing your multi-agent system</li>
+      <li>Test it live with Swagger UI at <code>/docs</code></li>
+    </ul>
+  </div>
+
+  <!-- CONCEPTS -->
+  <div class="section" id="concepts">
+    <div class="section-label">
+      <span class="tag">CONCEPTS</span>
+      <h2>Core Ideas — Day 8</h2>
+    </div>
+
+    <div class="concept open">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C01</span>
+        <h3>What is a REST API?</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — RESTAURANT AND ITS MENU</strong>
+          You (customer) = Frontend / Client · Waiter = API · Kitchen = Your LangGraph agents<br/><br/>
+          You don't walk into the kitchen and cook yourself. You tell the waiter what you want (a request). The waiter brings it to the kitchen, kitchen prepares it, waiter brings back your food (a response).<br/><br/>
+          <strong>An API is the waiter — a defined way for two systems to talk without one needing to know the internal details of the other.</strong>
+        </div>
+
+        <p><strong>REST = Representational State Transfer.</strong> A set of conventions for designing APIs:</p>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">rest_conventions.txt</span><span class="lang">text</span></div>
+          <pre>1. Resources are nouns      → /stocks/AAPL  (not /getStockAAPL)
+2. HTTP methods are verbs   → GET, POST, PUT, DELETE
+3. Stateless                → Each request is independent
+4. JSON for data exchange   → Standard format both sides understand
+
+Bad API design (not RESTful):
+  /getStockPrice?ticker=AAPL
+  /createNewAnalysisForStock
+
+Good API design (RESTful):
+  GET    /stocks/AAPL     → get AAPL data
+  POST   /analysis         → create new analysis
+  DELETE /analysis/{id}    → delete an analysis</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C02</span>
+        <h3>HTTP Methods and Status Codes</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — REQUESTS YOU MAKE AT A BANK</strong>
+          GET → "Show me my account balance" (just reading, no changes)<br/>
+          POST → "Open a new account" (creating something new)<br/>
+          PUT → "Update my address" (replacing existing data)<br/>
+          DELETE → "Close my account" (removing something)
+        </div>
+
+        <p><strong>Methods you'll actually use in your system:</strong></p>
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">your_endpoints.txt</span><span class="lang">text</span></div>
+          <pre>GET  /health                    → check if server is alive
+GET  /stocks/{ticker}/quick     → get just price data
+POST /analyze                   → run full multi-agent analysis
+                                   (POST because it triggers a complex
+                                    operation, not just reading data)</pre>
+        </div>
+
+        <p><strong>HTTP Status Codes — the waiter's response tone:</strong></p>
+        <div class="status-grid">
+          <div class="status-card"><div class="s-code s2">2xx</div><div class="s-label">200 OK — "Here's your data"<br/>201 Created — "I created that for you"</div></div>
+          <div class="status-card"><div class="s-code s4">4xx</div><div class="s-label">400 Bad Request — "I don't understand"<br/>404 Not Found — "That doesn't exist"<br/>422 Unprocessable — "Your format is wrong"</div></div>
+          <div class="status-card"><div class="s-code s5">5xx</div><div class="s-label">500 Internal Error — "Something broke on our end"<br/>503 Unavailable — "We're temporarily down"</div></div>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">status_examples.txt</span><span class="lang">text</span></div>
+          <pre>GET /stocks/INVALIDXYZ/price
+→ 404 Not Found: "Ticker not found"
+
+POST /analyze with missing ticker field
+→ 422 Unprocessable Entity: "ticker field is required"
+
+POST /analyze when Groq API is down
+→ 500 Internal Server Error: "LLM service unavailable"</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C03</span>
+        <h3>What is FastAPI?</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — SMART RECEPTIONIST</strong>
+          1. Greets visitors at specific doors (routes/endpoints)<br/>
+          2. Checks their ID and paperwork is correct (Pydantic validation)<br/>
+          3. Directs them to the right department (your functions)<br/>
+          4. Hands back the response in proper format (JSON)<br/>
+          5. Keeps a logbook of who came when (auto-generated Swagger docs)
+        </div>
+
+        <table class="compare-table">
+          <thead><tr><th>Feature</th><th>FastAPI</th><th>Flask</th><th>Django</th></tr></thead>
+          <tbody>
+            <tr><td>Auto validation</td><td>✅ Pydantic built-in</td><td>❌ Write manually</td><td>Partial</td></tr>
+            <tr><td>Auto docs (Swagger)</td><td>✅ Free at /docs</td><td>❌ Extra library</td><td>❌ Extra library</td></tr>
+            <tr><td>Async support</td><td>✅ Built-in ASGI</td><td>Partial (WSGI)</td><td>Partial</td></tr>
+            <tr><td>Type hints</td><td>✅ First-class</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Best for</td><td>AI/ML APIs</td><td>Tiny projects</td><td>Full web apps</td></tr>
+          </tbody>
+        </table>
+        <p>For an AI agent API — FastAPI is the industry standard. Nearly every production LLM API follows this pattern.</p>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C04</span>
+        <h3>Path Operations, Request & Response Models</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — DOCTOR'S CLINIC FORMS</strong>
+          Request Form (what YOU fill in): Name, Age, Symptoms — fields with defined types. You can't write "purple" in the Age field.<br/>
+          Response Form (what DOCTOR gives back): Diagnosis, Prescription, Follow-up — defined structure both sides agree on.<br/><br/>
+          That's exactly what Pydantic models do for FastAPI.
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">endpoint_anatomy.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> fastapi <span class="ck">import</span> FastAPI
+<span class="ck">from</span> pydantic <span class="ck">import</span> BaseModel
+
+app = <span class="cf">FastAPI</span>()
+
+<span class="cm"># ── Request Model (the "form" the user fills) ──────────</span>
+<span class="ck">class</span> <span class="cf">AnalysisRequest</span>(BaseModel):
+    ticker:     str          <span class="cm"># REQUIRED field</span>
+    query_type: str = <span class="cs">"full"</span>  <span class="cm"># OPTIONAL — default "full"</span>
+
+<span class="cm"># ── Response Model (the "form" we give back) ───────────</span>
+<span class="ck">class</span> <span class="cf">AnalysisResponse</span>(BaseModel):
+    ticker:         str
+    recommendation: str
+    confidence:     float
+
+<span class="cm"># ── Path Operation (the actual endpoint) ───────────────</span>
+@app.<span class="cf">post</span>(<span class="cs">"/analyze"</span>, <span class="cp">response_model</span>=AnalysisResponse)
+<span class="cm"># @app.post = responds to POST requests at "/analyze"</span>
+<span class="cm"># response_model = validates and formats OUR response</span>
+
+<span class="ck">def</span> <span class="cf">analyze_stock</span>(request: AnalysisRequest):
+    <span class="cm"># request is automatically validated BEFORE this function runs</span>
+    <span class="cm"># FastAPI rejects invalid requests with 422 automatically</span>
+    ticker = request.ticker
+
+    <span class="ck">return</span> <span class="cf">AnalysisResponse</span>(
+        <span class="cp">ticker</span>=ticker,
+        <span class="cp">recommendation</span>=<span class="cs">"BUY"</span>,
+        <span class="cp">confidence</span>=<span class="cn">0.78</span>
+    )
+    <span class="cm"># FastAPI converts this to JSON automatically</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CODE -->
+  <div class="section" id="code">
+    <div class="section-label">
+      <span class="tag">CODE</span>
+      <h2>Build the FastAPI Server</h2>
+    </div>
+
+    <div class="callout info">
+      <strong>INSTALL DEPENDENCIES</strong>
+      <code>pip install fastapi uvicorn[standard]</code> — fastapi is the framework; uvicorn is the ASGI server that actually runs it; [standard] adds performance packages (uvloop, httptools).
+    </div>
+
+    <div class="tabs">
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab(this,'t-schemas')">schemas.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-main')">main.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-run')">Run + Test</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-curl')">curl Commands</button>
+      </div>
+
+      <div id="t-schemas" class="tab-content active">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">api/schemas.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> pydantic <span class="ck">import</span> BaseModel, Field
+<span class="ck">from</span> typing <span class="ck">import</span> Optional, List
+
+<span class="cm"># ── REQUEST MODELS ──────────────────────────────────────</span>
+
+<span class="ck">class</span> <span class="cf">AnalysisRequest</span>(BaseModel):
+    <span class="cs">"""What the user sends us to request an analysis"""</span>
+
+    ticker: str = <span class="cf">Field</span>(
+        ...,
+        <span class="cm"># ... means REQUIRED (no default value)</span>
+        <span class="cp">description</span>=<span class="cs">"Stock ticker symbol e.g. AAPL, TSLA"</span>,
+        <span class="cp">examples</span>=[<span class="cs">"AAPL"</span>]
+        <span class="cm"># examples shows up in Swagger UI as a sample</span>
+    )
+    query_type: str = <span class="cf">Field</span>(<span class="cp">default</span>=<span class="cs">"full"</span>, <span class="cp">description</span>=<span class="cs">"full | quick | risk_only"</span>)
+    session_id: Optional[str] = <span class="cf">Field</span>(<span class="cp">default</span>=<span class="cs">"anonymous"</span>, <span class="cp">description</span>=<span class="cs">"Session ID for conversation memory"</span>)
+
+
+<span class="cm"># ── RESPONSE MODELS (nested — mirrors Report Agent's JSON output) ──</span>
+
+<span class="ck">class</span> <span class="cf">MarketData</span>(BaseModel):
+    current_price:    Optional[float] = <span class="ck">None</span>
+    price_change_pct: Optional[float] = <span class="ck">None</span>
+    rsi:              Optional[float] = <span class="ck">None</span>
+
+<span class="ck">class</span> <span class="cf">SentimentData</span>(BaseModel):
+    score:     Optional[float] = <span class="ck">None</span>
+    headlines: List[str] = []
+
+<span class="ck">class</span> <span class="cf">RiskData</span>(BaseModel):
+    volatility_annual: Optional[float] = <span class="ck">None</span>
+    risk_level:        Optional[str]   = <span class="ck">None</span>
+
+<span class="ck">class</span> <span class="cf">Verdict</span>(BaseModel):
+    recommendation: Optional[str]   = <span class="ck">None</span>
+    confidence:     Optional[float] = <span class="ck">None</span>
+    reasoning:      Optional[str]   = <span class="ck">None</span>
+    key_factors:    List[str]       = []
+
+<span class="ck">class</span> <span class="cf">AnalysisResponse</span>(BaseModel):
+    <span class="cs">"""What we send back to the user"""</span>
+    ticker:            str
+    report_date:       str
+    market_data:       MarketData
+    sentiment:         SentimentData
+    risk:              RiskData
+    verdict:           Verdict
+    executive_summary: str
+    disclaimer:        str
+
+<span class="ck">class</span> <span class="cf">HealthResponse</span>(BaseModel):
+    status:          str
+    redis_connected: bool
+    version:         str = <span class="cs">"1.0.0"</span>   <span class="cm"># ← Day 8; see Future Improvements for dynamic version</span>
+
+<span class="ck">class</span> <span class="cf">ErrorResponse</span>(BaseModel):
+    error:  str
+    detail: Optional[str] = <span class="ck">None</span></pre>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;"><strong style="color:var(--text)">Why nested models?</strong> Notice <code>AnalysisResponse</code> contains <code>MarketData</code>, <code>SentimentData</code> etc. as sub-models — mirroring the exact JSON structure your Report Agent already produces, making the conversion seamless.</p>
+      </div>
+
+      <div id="t-main" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">api/main.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> fastapi <span class="ck">import</span> FastAPI, HTTPException
+<span class="ck">from</span> fastapi.middleware.cors <span class="ck">import</span> CORSMiddleware
+<span class="ck">import</span> json
+
+<span class="ck">from</span> api.schemas <span class="ck">import</span> AnalysisRequest, AnalysisResponse, HealthResponse
+<span class="ck">from</span> agents.graph <span class="ck">import</span> build_graph
+<span class="ck">from</span> memory.redis_client <span class="ck">import</span> redis_client
+<span class="ck">from</span> memory.conversation <span class="ck">import</span> save_conversation_turn
+
+<span class="cm"># ── Create the FastAPI app ──────────────────────────────</span>
+app = <span class="cf">FastAPI</span>(
+    <span class="cp">title</span>=<span class="cs">"Multi-Agent Stock Analysis API"</span>,
+    <span class="cp">description</span>=<span class="cs">"AI-powered stock analysis using LangGraph"</span>,
+    <span class="cp">version</span>=<span class="cs">"1.0.0"</span>
+)
+<span class="cm"># These show up automatically in the Swagger UI docs page</span>
+
+<span class="cm"># ── CORS Middleware ─────────────────────────────────────</span>
+<span class="cm"># Without this, a frontend on a different port would be BLOCKED</span>
+app.<span class="cf">add_middleware</span>(
+    CORSMiddleware,
+    <span class="cp">allow_origins</span>=[<span class="cs">"*"</span>],   <span class="cm"># restrict to your domain in production</span>
+    <span class="cp">allow_methods</span>=[<span class="cs">"*"</span>],
+    <span class="cp">allow_headers</span>=[<span class="cs">"*"</span>],
+)
+
+<span class="cm"># ── Build the graph ONCE at startup ─────────────────────</span>
+<span class="cm"># Reused for every request — not rebuilt per-request</span>
+graph = <span class="cf">build_graph</span>()
+
+
+<span class="cm"># ═══════════════════════════════════════════════════════</span>
+<span class="cm"># ENDPOINTS</span>
+<span class="cm"># ═══════════════════════════════════════════════════════</span>
+
+@app.<span class="cf">get</span>(<span class="cs">"/"</span>, <span class="cp">tags</span>=[<span class="cs">"Root"</span>])
+<span class="ck">def</span> <span class="cf">root</span>():
+    <span class="cs">"""Welcome endpoint — confirms API is running"""</span>
+    <span class="ck">return</span> {<span class="cs">"message"</span>: <span class="cs">"Multi-Agent Stock Analysis API"</span>, <span class="cs">"docs"</span>: <span class="cs">"/docs"</span>}
+
+
+@app.<span class="cf">get</span>(<span class="cs">"/health"</span>, <span class="cp">response_model</span>=HealthResponse, <span class="cp">tags</span>=[<span class="cs">"Health"</span>])
+<span class="ck">def</span> <span class="cf">health_check</span>():
+    <span class="cs">"""
+    Health check endpoint.
+    Used by monitoring, load balancers, Docker healthchecks
+    to verify service is alive and dependencies are connected.
+    """</span>
+    redis_ok = <span class="ck">True</span>
+    <span class="ck">try</span>:
+        redis_client.<span class="cf">ping</span>()
+    <span class="ck">except</span> Exception:
+        redis_ok = <span class="ck">False</span>
+
+    <span class="ck">return</span> <span class="cf">HealthResponse</span>(
+        <span class="cp">status</span>=<span class="cs">"healthy"</span> <span class="ck">if</span> redis_ok <span class="ck">else</span> <span class="cs">"degraded"</span>,
+        <span class="cp">redis_connected</span>=redis_ok
+    )
+
+
+@app.<span class="cf">post</span>(<span class="cs">"/analyze"</span>, <span class="cp">response_model</span>=AnalysisResponse, <span class="cp">tags</span>=[<span class="cs">"Analysis"</span>])
+<span class="ck">def</span> <span class="cf">analyze_stock</span>(request: AnalysisRequest):
+    <span class="cs">"""
+    Main endpoint — runs full multi-agent stock analysis.
+    Orchestrator → Price → News → Risk → Analyst → Report
+    """</span>
+    <span class="cf">print</span>(<span class="cs">f"\n🌐 API Request: {request.ticker} ({request.query_type})"</span>)
+
+    initial_state = {
+        <span class="cs">"ticker"</span>: request.ticker, <span class="cs">"query_type"</span>: request.query_type,
+        <span class="cs">"analysis_type"</span>: <span class="ck">None</span>, <span class="cs">"should_fetch_news"</span>: <span class="ck">None</span>,
+        <span class="cs">"should_calculate_risk"</span>: <span class="ck">None</span>, <span class="cs">"current_price"</span>: <span class="ck">None</span>,
+        <span class="cs">"price_change_pct"</span>: <span class="ck">None</span>, <span class="cs">"rsi"</span>: <span class="ck">None</span>,
+        <span class="cs">"news_headlines"</span>: <span class="ck">None</span>, <span class="cs">"sentiment_score"</span>: <span class="ck">None</span>,
+        <span class="cs">"volatility"</span>: <span class="ck">None</span>, <span class="cs">"risk_level"</span>: <span class="ck">None</span>,
+        <span class="cs">"recommendation"</span>: <span class="ck">None</span>, <span class="cs">"confidence"</span>: <span class="ck">None</span>,
+        <span class="cs">"reasoning"</span>: <span class="ck">None</span>, <span class="cs">"final_report"</span>: <span class="ck">None</span>,
+        <span class="cs">"errors"</span>: [], <span class="cs">"retry_count"</span>: <span class="cn">0</span>
+    }
+
+    <span class="ck">try</span>:
+        final_state = graph.<span class="cf">invoke</span>(initial_state)
+    <span class="ck">except</span> Exception <span class="ck">as</span> e:
+        <span class="ck">raise</span> <span class="cf">HTTPException</span>(<span class="cp">status_code</span>=<span class="cn">500</span>, <span class="cp">detail</span>=<span class="cs">f"Analysis pipeline failed: {str(e)}"</span>)
+
+    <span class="ck">try</span>:
+        report = json.<span class="cf">loads</span>(final_state.<span class="cf">get</span>(<span class="cs">"final_report"</span>, <span class="cs">"{}"</span>))
+    <span class="ck">except</span> json.JSONDecodeError:
+        <span class="ck">raise</span> <span class="cf">HTTPException</span>(<span class="cp">status_code</span>=<span class="cn">500</span>, <span class="cp">detail</span>=<span class="cs">"Failed to parse analysis report"</span>)
+
+    <span class="ck">if</span> final_state.<span class="cf">get</span>(<span class="cs">"analysis_type"</span>) == <span class="cs">"error"</span>:
+        <span class="ck">raise</span> <span class="cf">HTTPException</span>(
+            <span class="cp">status_code</span>=<span class="cn">404</span>,
+            <span class="cp">detail</span>=final_state.<span class="cf">get</span>(<span class="cs">"errors"</span>, [<span class="cs">"Unknown error"</span>])[<span class="cn">0</span>]
+        )
+
+    <span class="cf">save_conversation_turn</span>(request.session_id, request.ticker, report)
+    <span class="ck">return</span> report
+
+
+@app.<span class="cf">get</span>(<span class="cs">"/stocks/{ticker}/quick"</span>, <span class="cp">tags</span>=[<span class="cs">"Analysis"</span>])
+<span class="ck">def</span> <span class="cf">quick_price_check</span>(ticker: str):
+    <span class="cs">"""
+    Lightweight endpoint — just price data, skips news/risk/LLM calls.
+    Much faster than /analyze for simple price checks.
+    """</span>
+    initial_state = {
+        <span class="cs">"ticker"</span>: ticker.<span class="cf">upper</span>(), <span class="cs">"query_type"</span>: <span class="cs">"quick"</span>,
+        <span class="cm"># ... rest of None fields ...</span>
+        <span class="cs">"errors"</span>: [], <span class="cs">"retry_count"</span>: <span class="cn">0</span>
+    }
+    final_state = graph.<span class="cf">invoke</span>(initial_state)
+    <span class="ck">return</span> {
+        <span class="cs">"ticker"</span>:     ticker.<span class="cf">upper</span>(),
+        <span class="cs">"price"</span>:      final_state.<span class="cf">get</span>(<span class="cs">"current_price"</span>),
+        <span class="cs">"change_pct"</span>: final_state.<span class="cf">get</span>(<span class="cs">"price_change_pct"</span>),
+        <span class="cs">"rsi"</span>:        final_state.<span class="cf">get</span>(<span class="cs">"rsi"</span>)
+    }</pre>
+        </div>
+      </div>
+
+      <div id="t-run" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">terminal</span><span class="lang">bash</span></div>
+          <pre>uvicorn api.main:app --reload
+
+# Breaking it down:
+# uvicorn         → the ASGI server program
+# api.main:app    → "look in api/main.py, find the variable named 'app'"
+# --reload        → auto-restart on code changes (dev only, never production)</pre>
+        </div>
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="terminal-dot red"></div><div class="terminal-dot yellow"></div><div class="terminal-dot green"></div>
+          </div>
+          <pre>INFO:     Will watch for changes in these directories: [...]
+INFO:     Uvicorn running on http://127.0.0.1:8000
+INFO:     Application startup complete.
+
+→ Open http://127.0.0.1:8000/docs  (Swagger UI)
+→ Click POST /analyze → "Try it out" → enter ticker → Execute
+→ See live response right in the browser!</pre>
+        </div>
+        <div class="callout info">
+          <strong>WHY SWAGGER UI MATTERS FOR INTERVIEWS</strong>
+          FastAPI auto-generates interactive documentation at <code>/docs</code> — for free. You can literally demo your project live without writing any test scripts. Click "Try it out", enter a ticker, and watch the full multi-agent system run in real time.
+        </div>
+      </div>
+
+      <div id="t-curl" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">curl_commands.sh</span><span class="lang">bash</span></div>
+          <pre><span class="cm"># Health check</span>
+curl http://127.0.0.1:8000/health
+
+<span class="cm"># Full analysis</span>
+curl -X POST http://127.0.0.1:8000/analyze \
+  -H <span class="cs">"Content-Type: application/json"</span> \
+  -d <span class="cs">'{"ticker": "AAPL", "query_type": "full"}'</span>
+
+<span class="cm"># Quick price check</span>
+curl http://127.0.0.1:8000/stocks/AAPL/quick
+
+<span class="cm"># Breaking down the POST command:</span>
+<span class="cm"># -X POST                          → use POST method</span>
+<span class="cm"># http://...                       → the URL</span>
+<span class="cm"># -H "Content-Type: application/json"  → tell server we're sending JSON</span>
+<span class="cm"># -d '{...}'                       → the actual body data</span>
+
+<span class="cm"># Risk-only mode</span>
+curl -X POST http://127.0.0.1:8000/analyze \
+  -H <span class="cs">"Content-Type: application/json"</span> \
+  -d <span class="cs">'{"ticker": "TSLA", "query_type": "risk_only"}'</span>
+
+<span class="cm"># Test invalid ticker (should return 404)</span>
+curl -X POST http://127.0.0.1:8000/analyze \
+  -H <span class="cs">"Content-Type: application/json"</span> \
+  -d <span class="cs">'{"ticker": "INVALIDXYZ"}'</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXTRAS: BUG FIX + FUTURE IMPROVEMENTS -->
+  <div class="section" id="extras">
+    <div class="section-label">
+      <span class="tag">DEEP DIVES</span>
+      <h2>Bug Fix + Future Improvements</h2>
+    </div>
+
+    <!-- BUG FIX -->
+    <div class="banner bugfix">
+      <span class="banner-icon">🐛</span>
+      <div class="banner-content">
+        <h3>Bug Fix — quick mode crashes at runtime</h3>
+        <p>The <code>price_agent_quick</code> node was never registered in the graph's conditional edge mapping, and it was never wired forward to <code>report_agent</code>. Any <code>query_type="quick"</code> request would throw a KeyError from LangGraph.</p>
+      </div>
+    </div>
+
+    <div class="improvement-card open">
+      <div class="improvement-head" onclick="toggleImprovement(this)">
+        <span class="improvement-label bugfix">BUG FIX</span>
+        <h3>Wire price_agent_quick properly into the graph</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="improvement-body">
+        <p>The routing function from Day 5 returned <code>"price_agent_quick"</code> but the conditional edge mapping never included it, and there was no edge from it to <code>report_agent</code>.</p>
+
+        <div class="pipeline-compare">
+          <div class="pipe-col">
+            <div class="pipe-col-title full">FULL pipeline</div>
+            <div class="pipe-step active">🎯 Orchestrator</div>
+            <div class="pipe-step active">📈 price_agent</div>
+            <div class="pipe-step active">📰 news_agent</div>
+            <div class="pipe-step active">⚠️ risk_agent</div>
+            <div class="pipe-step active">🧠 analyst_agent</div>
+            <div class="pipe-step active">📋 report_agent</div>
+            <div class="pipe-step active">🏁 END</div>
+          </div>
+          <div class="pipe-col">
+            <div class="pipe-col-title quick">QUICK pipeline (fixed)</div>
+            <div class="pipe-step active">🎯 Orchestrator</div>
+            <div class="pipe-step active">📈 price_agent_quick <span class="ps-tag">skips API calls</span></div>
+            <div class="pipe-step skipped">📰 news_agent</div>
+            <div class="pipe-step skipped">⚠️ risk_agent</div>
+            <div class="pipe-step skipped">🧠 analyst_agent</div>
+            <div class="pipe-step active">📋 report_agent <span class="ps-tag">null fields</span></div>
+            <div class="pipe-step active">🏁 END</div>
+          </div>
+        </div>
+
+        <p>Quick mode still flows through <code>report_agent</code> — because <code>/analyze</code> always returns <code>AnalysisResponse</code>. Without it, <code>final_report</code> is never written and FastAPI throws a 500. The report just has <code>null</code> fields for sentiment, risk, and verdict — which is honest and correct.</p>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">agents/graph.py — fixed routing section</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> agents.price_agent_quick <span class="ck">import</span> price_agent_quick_node  <span class="cm"># ← NEW import</span>
+
+<span class="ck">def</span> <span class="cf">build_graph</span>():
+    graph = <span class="cf">StateGraph</span>(StockAnalysisState)
+
+    graph.<span class="cf">add_node</span>(<span class="cs">"orchestrator"</span>,      orchestrator_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"price_agent"</span>,       price_agent_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"price_agent_quick"</span>, price_agent_quick_node)   <span class="cm"># ← NEW</span>
+    graph.<span class="cf">add_node</span>(<span class="cs">"news_agent"</span>,        news_agent_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"risk_agent"</span>,        risk_agent_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"analyst_agent"</span>,    analyst_agent_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"report_agent"</span>,     report_agent_node)
+    graph.<span class="cf">add_node</span>(<span class="cs">"error_handler"</span>,    error_handler_node)
+
+    graph.<span class="cf">set_entry_point</span>(<span class="cs">"orchestrator"</span>)
+
+    <span class="cm"># ── Conditional: after orchestrator ──────────────────</span>
+    graph.<span class="cf">add_conditional_edges</span>(
+        <span class="cs">"orchestrator"</span>,
+        route_after_orchestrator,
+        {
+            <span class="cs">"price_agent"</span>:       <span class="cs">"price_agent"</span>,
+            <span class="cs">"price_agent_quick"</span>: <span class="cs">"price_agent_quick"</span>,   <span class="cm"># ← NEW mapping</span>
+            <span class="cs">"error_handler"</span>:     <span class="cs">"error_handler"</span>
+        }
+    )
+
+    <span class="cm"># ── Full pipeline ────────────────────────────────────</span>
+    graph.<span class="cf">add_edge</span>(<span class="cs">"price_agent"</span>,  <span class="cs">"news_agent"</span>)
+    graph.<span class="cf">add_edge</span>(<span class="cs">"news_agent"</span>,   <span class="cs">"risk_agent"</span>)
+    graph.<span class="cf">add_edge</span>(<span class="cs">"risk_agent"</span>,   <span class="cs">"analyst_agent"</span>)
+
+    <span class="cm"># ── Quick pipeline — straight to report ──────────────</span>
+    graph.<span class="cf">add_edge</span>(<span class="cs">"price_agent_quick"</span>, <span class="cs">"report_agent"</span>)   <span class="cm"># ← NEW</span>
+
+    graph.<span class="cf">add_conditional_edges</span>(
+        <span class="cs">"analyst_agent"</span>, route_after_analyst,
+        {<span class="cs">"report_agent"</span>: <span class="cs">"report_agent"</span>, <span class="cs">"retry_analyst"</span>: <span class="cs">"analyst_agent"</span>}
+    )
+
+    graph.<span class="cf">add_edge</span>(<span class="cs">"report_agent"</span>,  END)
+    graph.<span class="cf">add_edge</span>(<span class="cs">"error_handler"</span>, END)
+
+    <span class="ck">return</span> graph.<span class="cf">compile</span>()</pre>
+        </div>
+
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="terminal-dot red"></div><div class="terminal-dot yellow"></div><div class="terminal-dot green"></div>
+          </div>
+          <pre><span style="color:#8fdb9a"># Expected terminal logs for quick mode after fix:</span>
+🎯 Orchestrator: Validating ticker 'AAPL'...
+⚡ Quick analysis mode — skipping news and risk
+🔀 Routing → price_agent_quick (quick mode)
+📈 Price Agent (Quick): Fetching AAPL...
+📋 Report Agent: Compiling report for AAPL...
+<span style="color:var(--green)">✅ Full AnalysisResponse returned — sentiment/risk/verdict fields = null</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- FUTURE IMPROVEMENTS: Dynamic Versioning -->
+    <div class="banner future" style="margin-top: 24px;">
+      <span class="banner-icon">🚀</span>
+      <div class="banner-content">
+        <h3>Future Improvements — Lifespan, Dynamic Versioning, ASGI</h3>
+        <p>Three production-thinking enhancements to apply in Day 16 when we do full production hardening.</p>
+      </div>
+    </div>
+
+    <div class="improvement-card">
+      <div class="improvement-head" onclick="toggleImprovement(this)">
+        <span class="improvement-label future">FUTURE</span>
+        <h3>Dynamic Versioning — Read version from env/file not hardcode</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="improvement-body">
+        <p>Hardcoding <code>version="1.0.0"</code> in <code>api/main.py</code> means every version bump requires a code change. The production-grade fix reads from environment or a <code>VERSION</code> file.</p>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">core/config.py — add version field</span><span class="lang">python</span></div>
+          <pre><span class="ck">def</span> <span class="cf">get_version</span>() -> str:
+    <span class="cs">"""Read version from VERSION file, fallback to env var, fallback to default"""</span>
+    <span class="ck">try</span>:
+        <span class="ck">with</span> <span class="cf">open</span>(<span class="cs">"VERSION"</span>, <span class="cs">"r"</span>) <span class="ck">as</span> f:
+            <span class="ck">return</span> f.<span class="cf">read</span>().<span class="cf">strip</span>()
+    <span class="ck">except</span> FileNotFoundError:
+        <span class="ck">return</span> os.<span class="cf">getenv</span>(<span class="cs">"APP_VERSION"</span>, <span class="cs">"0.1.0"</span>)
+
+<span class="ck">class</span> <span class="cf">Config</span>:
+    <span class="cm"># ... existing fields ...</span>
+    APP_VERSION = <span class="cf">get_version</span>()  <span class="cm"># ← reads from VERSION file or env</span></pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">api/main.py — use config version</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> core.config <span class="ck">import</span> config
+
+app = <span class="cf">FastAPI</span>(
+    <span class="cp">title</span>=<span class="cs">"Multi-Agent Stock Analysis API"</span>,
+    <span class="cp">version</span>=config.APP_VERSION   <span class="cm"># ← was hardcoded "1.0.0"</span>
+)
+
+<span class="cm"># Bumping version is now just:</span>
+<span class="cm"># echo "1.3.0" > VERSION</span>
+<span class="cm"># No code changes, no redeploy of logic</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="improvement-card">
+      <div class="improvement-head" onclick="toggleImprovement(this)">
+        <span class="improvement-label future">FUTURE</span>
+        <h3>lifespan — Explicit startup/shutdown hooks instead of import-time globals</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="improvement-body">
+        <p>Currently <code>graph = build_graph()</code> runs at import time. The proper pattern is FastAPI's <code>lifespan</code> context manager — gives you explicit startup/shutdown hooks so resources are initialized in a controlled, intentional way.</p>
+
+        <div class="callout warn">
+          <strong>WHY --reload TRIGGERS THIS</strong>
+          <code>--reload</code> is a dev-only flag. It restarts the whole process when you save a file, so <code>build_graph()</code> re-runs — this is intended dev behavior, not a bug. In production you run <code>uvicorn api.main:app --workers 4</code> (no <code>--reload</code>) — each worker loads the graph exactly once at startup via lifespan.
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">api/main.py — with lifespan (Day 16+)</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> contextlib <span class="ck">import</span> asynccontextmanager
+<span class="ck">from</span> fastapi <span class="ck">import</span> FastAPI
+
+app_state = {}  <span class="cm"># avoids polluting module-level globals</span>
+
+@asynccontextmanager
+<span class="ck">async def</span> <span class="cf">lifespan</span>(app: FastAPI):
+    <span class="cs">"""
+    Code before 'yield' = STARTUP (runs once, controlled)
+    Code after  'yield' = SHUTDOWN (runs on graceful exit)
+    """</span>
+    <span class="cm"># ── STARTUP ──────────────────────────────────────────</span>
+    <span class="cf">print</span>(<span class="cs">"🚀 Starting up: building graph..."</span>)
+    app_state[<span class="cs">"graph"</span>] = <span class="cf">build_graph</span>()
+
+    <span class="cf">print</span>(<span class="cs">"🔌 Checking Redis connection..."</span>)
+    <span class="ck">try</span>:
+        redis_client.<span class="cf">ping</span>()
+        <span class="cf">print</span>(<span class="cs">"✅ Redis connected"</span>)
+    <span class="ck">except</span> Exception:
+        <span class="cf">print</span>(<span class="cs">"⚠️  Redis unreachable — will degrade gracefully"</span>)
+
+    <span class="ck">yield</span>
+    <span class="cm"># ── SHUTDOWN ─────────────────────────────────────────</span>
+    <span class="cf">print</span>(<span class="cs">"🛑 Shutting down: cleaning up..."</span>)
+    redis_client.<span class="cf">close</span>()
+
+app = <span class="cf">FastAPI</span>(<span class="cp">title</span>=<span class="cs">"..."</span>, <span class="cp">version</span>=config.APP_VERSION, <span class="cp">lifespan</span>=lifespan)
+
+<span class="cm"># In endpoints, read from app_state instead of bare global:</span>
+<span class="ck">def</span> <span class="cf">analyze_stock</span>(request: AnalysisRequest):
+    graph = app_state[<span class="cs">"graph"</span>]   <span class="cm"># ← not a module-level global anymore</span>
+    ...</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="improvement-card">
+      <div class="improvement-head" onclick="toggleImprovement(this)">
+        <span class="improvement-label future">FUTURE</span>
+        <h3>ASGI vs WSGI — What "ASGI server" actually means</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="improvement-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — RESTAURANT SERVING STYLE</strong>
+          <strong>WSGI (old):</strong> One waiter, one table at a time. Waiter takes Table 1's order and WAITS at the kitchen until food is ready. Table 2 starves the whole time.<br/><br/>
+          <strong>ASGI (new):</strong> One waiter, juggles multiple tables. Takes Table 1's order, gives ticket to kitchen, immediately goes to Table 2. When Table 1's food is ready, serves it. No table blocks another.
+        </div>
+
+        <table class="asgi-table">
+          <thead><tr><th>Term</th><th>Simple Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>WSGI</td><td>Old standard — one request fully blocks the worker. Used by Flask, Django traditionally.</td></tr>
+            <tr><td>ASGI</td><td>New standard — workers can juggle multiple requests while waiting on network calls.</td></tr>
+            <tr><td>uvicorn</td><td>The actual ASGI server program that runs your FastAPI app.</td></tr>
+            <tr><td>FastAPI</td><td>The framework that defines routes/validation — needs an ASGI server like uvicorn to run.</td></tr>
+            <tr><td>lifespan</td><td>Explicit startup/shutdown hooks — replaces scattered import-time side effects.</td></tr>
+            <tr><td>--reload</td><td>Dev-only flag — restarts whole process on file save. Never used in production.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout info">
+          <strong>HONEST CATCH IN YOUR CURRENT CODE</strong>
+          Your agents (price_agent_node, news_agent_node etc.) are synchronous functions with synchronous libraries (yfinance, requests-based clients). Even though uvicorn IS an ASGI server, FastAPI automatically offloads sync functions to a thread pool — you get reasonable concurrency without rewriting everything as async. True end-to-end async (using <code>httpx.AsyncClient</code> + <code>async def</code> nodes) is a Day 16+ refinement for maximum throughput under heavy load.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERVIEW QA -->
+  <div class="section" id="interview">
+    <div class="section-label">
+      <span class="tag">INTERVIEW</span>
+      <h2>Q&A — Day 8</h2>
+    </div>
+    <div class="qa-list">
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What is a REST API and what makes an API "RESTful"?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">REST stands for Representational State Transfer — a set of conventions for API design. A RESTful API treats data as resources accessed via nouns in the URL (/stocks/AAPL rather than /getStock), uses HTTP methods as verbs (GET for reading, POST for creating), is stateless meaning each request is independent, and exchanges data in JSON. This creates predictable, standardized interfaces that any client can consume.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Why did you choose FastAPI over Flask or Django for this project?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">FastAPI provides automatic request validation through Pydantic models, automatic interactive documentation via Swagger UI, and built-in async support — all critical for an AI agent API where requests can be slow due to LLM calls. Flask requires manually implementing validation and docs. Django is heavyweight with ORM and admin features we don't need for a pure API. FastAPI is purpose-built for exactly this use case and is the de facto standard for ML/AI APIs in production.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain the role of Pydantic models in your FastAPI endpoints.</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Pydantic models define the exact shape of data flowing in and out of each endpoint. AnalysisRequest validates incoming data — ensuring ticker is a string and is provided — before my function code even executes, automatically returning a 422 error for malformed requests. AnalysisResponse ensures what I return matches a defined contract, which also generates accurate API documentation automatically. This eliminates an entire category of bugs from inconsistent data shapes.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">Walk me through what happens when a POST request hits your /analyze endpoint.</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">FastAPI first validates the incoming JSON against AnalysisRequest — if ticker is missing, it immediately returns 422 without running my code. If valid, it creates an AnalysisRequest object and passes it to my function. I build the initial LangGraph state, invoke the graph which runs all 5 agents sequentially, parse the resulting JSON report, save it to conversation memory in Redis, and return it. FastAPI then validates my return value against AnalysisResponse and serializes it to JSON for the client.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Why is there a separate /stocks/{ticker}/quick endpoint instead of just /analyze?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Different use cases have different performance needs. A simple price check doesn't need to wait for Tavily search calls and three separate LLM invocations — that would be wasteful latency and cost. By exposing query_type as a parameter and providing a dedicated quick endpoint, I let clients choose the right tool for their need — similar to how you wouldn't order a five-course meal when you just want a coffee.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">How would you handle a scenario where 1000 users hit /analyze simultaneously?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">First, the Redis caching layer absorbs significant load since repeated tickers within the cache TTL window return instantly. Second, uvicorn can run multiple worker processes via --workers flag to handle concurrent requests across CPU cores. Third, for true scale I'd deploy behind a load balancer with multiple API instances, and make LLM calls within agents async to avoid blocking. Finally, rate limiting per user would prevent any single client from monopolizing the LLM API quota shared across all users.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTube -->
+  <div class="section">
+    <div class="section-label">
+      <span class="tag">REFERENCES</span>
+      <h2>YouTube Resources</h2>
+    </div>
+    <div class="yt-links">
+      <a class="yt-link" href="https://www.youtube.com/watch?v=7t2alSnE2-I" target="_blank"><span class="yt-icon">▶</span> FastAPI Crash Course</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=lsMQRaeKNDk" target="_blank"><span class="yt-icon">▶</span> REST API Concepts</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=Wj_VsPCXVRQ" target="_blank"><span class="yt-icon">▶</span> Pydantic + FastAPI</a>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div class="section">
+    <div class="checklist">
+      <h3>✅ DAY 8 CHECKLIST</h3>
+      <div class="check-grid">
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood REST — resources, HTTP methods, statelessness</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood HTTP status codes — 2xx, 4xx, 5xx</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood why FastAPI over Flask/Django for AI APIs</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood Path Operations and Pydantic models</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>fastapi and uvicorn installed</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>api/schemas.py created — all Request/Response models</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>api/main.py created — all 4 endpoints</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Server started with uvicorn successfully</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Swagger UI opened at /docs</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Tested POST /analyze via Swagger UI — live response</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Tested GET /health — confirmed Redis status</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Tested GET /stocks/AAPL/quick — faster than full</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Applied bug fix — price_agent_quick wired in graph</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood lifespan + dynamic versioning (future)</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood WSGI vs ASGI distinction</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Can explain all 6 interview questions confidently</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleConcept(head) { head.parentElement.classList.toggle('open'); }
+  function toggleQA(item) { item.classList.toggle('open'); }
+  function toggleImprovement(head) {
+    const card = head.parentElement;
+    card.classList.toggle('open');
+    head.querySelector('.chevron').style.transform = card.classList.contains('open') ? 'rotate(180deg)' : '';
+  }
+  function switchTab(btn, targetId) {
+    const nav  = btn.closest('.tab-nav');
+    const tabs = btn.closest('.tabs');
+    nav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tabs.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(targetId).classList.add('active');
+  }
+  function toggleCheck(item) {
+    item.classList.toggle('checked');
+    item.querySelector('.check-box').textContent = item.classList.contains('checked') ? '✓' : '';
+  }
+</script>
+</body>
+</html>

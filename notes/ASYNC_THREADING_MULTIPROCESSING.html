@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Asyncio vs Threading vs Multiprocessing - Chat Summary</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+    h1, h2, h3 { color: #2c3e50; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+    table, th, td { border: 1px solid #ccc; }
+    th, td { padding: 10px; text-align: left; }
+    th { background: #eaeaea; }
+    .section { margin-bottom: 40px; }
+  </style>
+</head>
+<body>
+  <h1>Asyncio vs Threading vs Multiprocessing</h1>
+
+  <div class="section">
+    <h2>Asyncio</h2>
+    <p><strong>Concept:</strong> Single-threaded, cooperative multitasking using an event loop. Best for I/O-bound tasks.</p>
+    <p><strong>When to Use:</strong> Many network calls, lightweight concurrency without threads.</p>
+    <h3>Sample Code</h3>
+    <pre>
+import asyncio
+
+async def fetch_data(n):
+    print(f"Start task {n}")
+    await asyncio.sleep(1)
+    print(f"End task {n}")
+    return n * 10
+
+async def main():
+    tasks = [fetch_data(i) for i in range(3)]
+    results = await asyncio.gather(*tasks)
+    print("Results:", results)
+
+asyncio.run(main())
+    </pre>
+    <p><strong>Key Parameters:</strong> <code>asyncio.run()</code>, <code>asyncio.gather()</code>, <code>asyncio.sleep()</code>.</p>
+  </div>
+
+  <div class="section">
+    <h2>Threading</h2>
+    <p><strong>Concept:</strong> Multiple threads within one process, sharing memory. Limited by Python’s GIL.</p>
+    <p><strong>When to Use:</strong> Parallel I/O tasks (downloads, DB queries).</p>
+    <h3>Sample Code</h3>
+    <pre>
+import threading
+import time
+
+def worker(n):
+    print(f"Thread {n} starting")
+    time.sleep(1)
+    print(f"Thread {n} done")
+
+threads = []
+for i in range(3):
+    t = threading.Thread(target=worker, args=(i,))
+    threads.append(t)
+    t.start()
+
+for t in threads:
+    t.join()
+    </pre>
+    <p><strong>Key Parameters:</strong> <code>threading.Thread(target, args)</code>, <code>.start()</code>, <code>.join()</code>.</p>
+  </div>
+
+  <div class="section">
+    <h2>Multiprocessing</h2>
+    <p><strong>Concept:</strong> Multiple processes, each with its own interpreter and GIL. True parallelism on multiple cores.</p>
+    <p><strong>When to Use:</strong> CPU-bound tasks (math, ML, image processing).</p>
+    <h3>Sample Code</h3>
+    <pre>
+import multiprocessing
+import time
+
+def worker(n):
+    print(f"Process {n} starting")
+    time.sleep(1)
+    print(f"Process {n} done")
+    return n * n
+
+if __name__ == "__main__":
+    with multiprocessing.Pool(processes=3) as pool:
+        results = pool.map(worker, [1, 2, 3])
+    print("Results:", results)
+    </pre>
+    <p><strong>Key Parameters:</strong> <code>multiprocessing.Process()</code>, <code>multiprocessing.Pool()</code>, <code>.map()</code>.</p>
+  </div>
+
+  <div class="section">
+    <h2>Comparison Table</h2>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th>Asyncio</th>
+        <th>Threading</th>
+        <th>Multiprocessing</th>
+      </tr>
+      <tr>
+        <td>Best for</td>
+        <td>I/O-bound tasks</td>
+        <td>I/O-bound tasks</td>
+        <td>CPU-bound tasks</td>
+      </tr>
+      <tr>
+        <td>Concurrency type</td>
+        <td>Cooperative</td>
+        <td>Preemptive (OS threads)</td>
+        <td>True parallelism</td>
+      </tr>
+      <tr>
+        <td>Memory</td>
+        <td>Shared</td>
+        <td>Shared</td>
+        <td>Separate</td>
+      </tr>
+      <tr>
+        <td>GIL impact</td>
+        <td>Not affected</td>
+        <td>Affected</td>
+        <td>Not affected</td>
+      </tr>
+      <tr>
+        <td>Overhead</td>
+        <td>Low</td>
+        <td>Medium</td>
+        <td>High</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Global Interpreter Lock (GIL)</h2>
+    <p>Python threads are real OS threads, but the GIL ensures only one executes Python bytecode at a time. Threads are useful for I/O-bound tasks, but not CPU-bound tasks. Multiprocessing sidesteps the GIL entirely.</p>
+  </div>
+
+  <div class="section">
+    <h2>concurrent.futures</h2>
+    <p>Provides a high-level API for threading and multiprocessing.</p>
+
+    <h3>ThreadPoolExecutor</h3>
+    <pre>
+from concurrent.futures import ThreadPoolExecutor
+import time
+
+def io_task(n):
+    print(f"Thread {n} start")
+    time.sleep(1)
+    print(f"Thread {n} end")
+    return n * 10
+
+with ThreadPoolExecutor(max_workers=3) as executor:
+    futures = [executor.submit(io_task, i) for i in range(3)]
+    results = [f.result() for f in futures]
+
+print("Results:", results)
+    </pre>
+
+    <h3>ProcessPoolExecutor</h3>
+    <pre>
+from concurrent.futures import ProcessPoolExecutor
+import time
+
+def cpu_task(n):
+    print(f"Process {n} start")
+    time.sleep(1)
+    print(f"Process {n} end")
+    return n * n
+
+with ProcessPoolExecutor(max_workers=3) as executor:
+    futures = [executor.submit(cpu_task, i) for i in range(3)]
+    results = [f.result() for f in futures]
+
+print("Results:", results)
+    </pre>
+
+    <table>
+      <tr>
+        <th>Aspect</th>
+        <th>ThreadPoolExecutor</th>
+        <th>ProcessPoolExecutor</th>
+      </tr>
+      <tr>
+        <td>Parallelism</td>
+        <td>Limited by GIL (I/O only)</td>
+        <td>True parallelism (multi-core)</td>
+      </tr>
+      <tr>
+        <td>Best for</td>
+        <td>I/O-bound tasks</td>
+        <td>CPU-bound tasks</td>
+      </tr>
+      <tr>
+        <td>Memory</td>
+        <td>Shared</td>
+        <td>Separate</td>
+      </tr>
+      <tr>
+        <td>Overhead</td>
+        <td>Low</td>
+        <td>High</td>
+      </tr>
+      <tr>
+        <td>Communication</td>
+        <td>Shared vars</td>
+        <td>IPC (queues, pipes)</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Rule of Thumb</h2>
+    <ul>
+      <li>Use <strong>Asyncio</strong> for many lightweight I/O tasks.</li>
+      <li>Use <strong>ThreadPoolExecutor</strong> for blocking I/O tasks.</li>
+      <li>Use <strong>ProcessPoolExecutor</strong> for CPU-heavy tasks.</li>
+    </ul>
+  </div>
+</body>
+</html>
+  <div class="section">
+    <h2>Side-by-Side Demo</h2>
+    <p>Below is the same task — computing squares of numbers — implemented with Asyncio, ThreadPoolExecutor, and ProcessPoolExecutor.</p>
+
+    <h3>Asyncio Version</h3>
+    <pre>
+import asyncio
+
+async def compute_square(n):
+    print(f"Async task {n} start")
+    await asyncio.sleep(1)  # Simulates I/O wait
+    print(f"Async task {n} end")
+    return n * n
+
+async def main():
+    tasks = [compute_square(i) for i in range(5)]
+    results = await asyncio.gather(*tasks)
+    print("Results:", results)
+
+asyncio.run(main())
+    </pre>
+
+    <h3>ThreadPoolExecutor Version</h3>
+    <pre>
+from concurrent.futures import ThreadPoolExecutor
+import time
+
+def compute_square(n):
+    print(f"Thread {n} start")
+    time.sleep(1)  # Simulates I/O wait
+    print(f"Thread {n} end")
+    return n * n
+
+with ThreadPoolExecutor(max_workers=5) as executor:
+    futures = [executor.submit(compute_square, i) for i in range(5)]
+    results = [f.result() for f in futures]
+
+print("Results:", results)
+    </pre>
+
+    <h3>ProcessPoolExecutor Version</h3>
+    <pre>
+from concurrent.futures import ProcessPoolExecutor
+import time
+
+def compute_square(n):
+    print(f"Process {n} start")
+    time.sleep(1)  # Simulates heavy work
+    print(f"Process {n} end")
+    return n * n
+
+with ProcessPoolExecutor(max_workers=5) as executor:
+    futures = [executor.submit(compute_square, i) for i in range(5)]
+    results = [f.result() for f in futures]
+
+print("Results:", results)
+    </pre>
+
+    <h3>Comparison</h3>
+    <table>
+      <tr>
+        <th>Approach</th>
+        <th>Execution Style</th>
+        <th>Best For</th>
+      </tr>
+      <tr>
+        <td>Asyncio</td>
+        <td>Single-threaded, cooperative multitasking</td>
+        <td>Lightweight I/O tasks</td>
+      </tr>
+      <tr>
+        <td>ThreadPoolExecutor</td>
+        <td>Multiple threads, limited by GIL</td>
+        <td>Blocking I/O tasks</td>
+      </tr>
+      <tr>
+        <td>ProcessPoolExecutor</td>
+        <td>Multiple processes, true parallelism</td>
+        <td>CPU-bound tasks</td>
+      </tr>
+    </table>
+  </div>

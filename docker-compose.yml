@@ -1,0 +1,107 @@
+# docker-compose.yml
+
+version: "3.9"
+
+services:
+  # ── FastAPI Application ──────────────────────────────
+  api:
+    build:
+      context: .
+      # context: . = "use the current directory as build context"
+      # Docker sends everything in . to the Docker daemon for building
+      # (excluding what's in .dockerignore)
+      dockerfile: Dockerfile
+      # Which Dockerfile to use (could have multiple in one project)
+
+    container_name: stock-agent-api
+    # Give a readable name instead of random Docker-generated ones
+
+    ports:
+      - "8000:8000"
+      # "HOST_PORT:CONTAINER_PORT"
+      # "8000:8000" = your laptop's port 8000 maps to container's port 8000
+      # Now http://localhost:8000 hits your FastAPI app
+
+    environment:
+      # Inject environment variables at runtime
+      # These OVERRIDE anything in the image itself
+      # This is how API keys get in WITHOUT being baked into the image
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      # ${GROQ_API_KEY} reads from your HOST machine's .env file
+      # Docker Compose automatically reads .env in same directory
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      # Note: NOT redis://localhost:6379!
+      # Inside Docker network, containers find each other by SERVICE NAME
+      # "redis" here = the name of the redis service below
+      - APP_VERSION=1.0.0
+
+    depends_on:
+      redis:
+        condition: service_healthy
+        # Don't start api until redis passes its health check
+        # Without this: api might start before Redis is ready
+        # and crash trying to connect
+
+    volumes:
+      - ./logs:/app/logs
+      # Mount a logs folder: logs written to /app/logs inside container
+      # appear in ./logs on your host machine
+      # Survives container restarts
+
+    restart: unless-stopped
+    # If container crashes → Docker automatically restarts it
+    # "unless-stopped" = restart on crash, but NOT if you manually stop it
+
+    networks:
+      - stock-network
+      # Which network this service joins
+
+  # ── Redis ────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    # Use official Redis 7 image, alpine variant (even smaller than slim)
+    # No custom Dockerfile needed — official image is production-ready
+
+    container_name: stock-agent-redis
+
+    ports:
+      - "6379:6379"
+      # Expose Redis to your host machine too
+      # Useful for debugging with redis-cli from your terminal
+
+    volumes:
+      - redis-data:/data
+      # Named volume: Redis stores its data in /data inside container
+      # "redis-data" persists even if container is removed and recreated
+      # Without this: all cached data lost on every restart
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      # Run this command to check if Redis is healthy
+      interval: 10s
+      # Check every 10 seconds
+      timeout: 5s
+      # If check takes more than 5s → consider it failed
+      retries: 3
+      # Must fail 3 times before marking as unhealthy
+      # This prevents temporary blips from killing the service
+
+    restart: unless-stopped
+
+    networks:
+      - stock-network
+
+# ── Named Volumes ──────────────────────────────────────
+volumes:
+  redis-data:
+    # Docker manages this volume's storage location
+    # Persists data across container lifecycle
+
+# ── Networks ───────────────────────────────────────────
+networks:
+  stock-network:
+    driver: bridge
+    # bridge = virtual network that lets containers
+    # talk to each other using service names as hostnames
+    # "redis" resolves to the Redis container's IP automatically

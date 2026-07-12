@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 2 — LangGraph Deep Dive</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --code-bg: #0d1117;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 80% 10%, rgba(124,58,237,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 20% 80%, rgba(0,212,255,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .day-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(124,58,237,0.1);
+    border: 1px solid rgba(124,58,237,0.3);
+    color: #a78bfa;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 6px 14px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .day-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: #a78bfa;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 800;
+    line-height: 1.15;
+    color: #fff;
+    margin-bottom: 16px;
+  }
+
+  h1 span { color: #a78bfa; }
+
+  .header-meta {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+
+  .meta-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .meta-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── GOAL BOX ── */
+  .goal-box {
+    background: linear-gradient(135deg, rgba(124,58,237,0.07), rgba(0,212,255,0.04));
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+
+  .goal-box h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #a78bfa;
+    margin-bottom: 14px;
+  }
+
+  .goal-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+  }
+
+  .goal-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    color: #94a3b8;
+  }
+
+  .goal-list li::before {
+    content: '→';
+    color: #a78bfa;
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+  }
+
+  /* ── SECTION ── */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  h2 .icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  /* ── CONCEPT CARDS ── */
+  .concept-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .concept-block::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+  }
+
+  .concept-block.purple::before { background: var(--accent2); }
+  .concept-block.green::before  { background: var(--accent3); }
+  .concept-block.warn::before   { background: var(--warn); }
+  .concept-block.red::before    { background: var(--danger); }
+
+  .concept-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+
+  .concept-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    font-style: italic;
+  }
+
+  /* ── SCENARIO ── */
+  .scenario {
+    background: rgba(16,185,129,0.06);
+    border: 1px solid rgba(16,185,129,0.2);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 18px 0;
+  }
+
+  .scenario-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent3);
+    margin-bottom: 10px;
+  }
+
+  .scenario p { font-size: 14px; color: #94a3b8; line-height: 1.7; }
+
+  /* ── CODE ── */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 18px 0;
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-lang {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .code-dots { display: flex; gap: 6px; }
+  .code-dots span { width: 10px; height: 10px; border-radius: 50%; }
+
+  pre {
+    padding: 20px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #e2e8f0;
+  }
+
+  .cm { color: #4a5568; font-style: italic; }
+  .ck { color: #7c3aed; }
+  .cs { color: #10b981; }
+  .cn { color: #f59e0b; }
+  .cf { color: #00d4ff; }
+  .cd { color: #a78bfa; }
+
+  /* ── FLOW ── */
+  .flow {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 18px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 2.2;
+    color: #94a3b8;
+    overflow-x: auto;
+  }
+
+  .flow .node   { color: var(--accent); font-weight: 700; }
+  .flow .arrow  { color: #475569; }
+  .flow .label  { color: var(--accent3); }
+  .flow .comment{ color: #334155; font-style: italic; }
+  .flow .write  { color: var(--warn); }
+  .flow .read   { color: #a78bfa; }
+
+  /* ── TABLE ── */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+
+  .compare-table th {
+    background: rgba(124,58,237,0.08);
+    color: #a78bfa;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .compare-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(30,45,69,0.6);
+    color: #94a3b8;
+    vertical-align: top;
+  }
+
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .compare-table td:first-child { color: var(--text); font-weight: 500; }
+
+  /* ── CALLOUT ── */
+  .callout {
+    display: flex;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin: 18px 0;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .callout.info    { background: rgba(0,212,255,0.06);   border: 1px solid rgba(0,212,255,0.18);   color: #93c5fd; }
+  .callout.warn    { background: rgba(245,158,11,0.06);  border: 1px solid rgba(245,158,11,0.2);   color: #fcd34d; }
+  .callout.success { background: rgba(16,185,129,0.06);  border: 1px solid rgba(16,185,129,0.2);   color: #6ee7b7; }
+  .callout.purple  { background: rgba(124,58,237,0.06);  border: 1px solid rgba(124,58,237,0.2);   color: #c4b5fd; }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── STATE FLOW VIZ ── */
+  .state-flow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+
+  .state-agent {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    position: relative;
+  }
+
+  .state-agent-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .state-writes { font-size: 11px; color: var(--warn); }
+  .state-reads  { font-size: 11px; color: #a78bfa; margin-top: 4px; }
+
+  .state-badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin: 2px;
+  }
+
+  .badge-write { background: rgba(245,158,11,0.15); color: var(--warn); border: 1px solid rgba(245,158,11,0.25); }
+  .badge-read  { background: rgba(124,58,237,0.15); color: #a78bfa;     border: 1px solid rgba(124,58,237,0.25); }
+
+  /* ── STEPS ── */
+  .step {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 36px;
+    position: relative;
+  }
+
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 18px; top: 40px; bottom: -10px;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--border), transparent);
+  }
+
+  .step-num {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(124,58,237,0.12);
+    border: 1px solid rgba(124,58,237,0.3);
+    color: #a78bfa;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-content { flex: 1; }
+
+  .step-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .step-desc { font-size: 14px; color: #64748b; margin-bottom: 14px; }
+
+  /* ── LIFECYCLE VIZ ── */
+  .lifecycle {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .lifecycle-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+
+  .lifecycle-step:last-child { border-bottom: none; }
+  .lifecycle-step:hover { background: rgba(255,255,255,0.02); }
+
+  .lc-num {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.2);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .lc-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 3px;
+  }
+
+  .lc-desc { font-size: 13px; color: #64748b; }
+
+  /* ── EDGE TYPE CARDS ── */
+  .edge-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 18px 0;
+  }
+
+  @media (max-width: 600px) { .edge-grid { grid-template-columns: 1fr; } }
+
+  .edge-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .edge-card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .edge-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+
+  .tag-fixed { background: rgba(0,212,255,0.15); color: var(--accent); border: 1px solid rgba(0,212,255,0.25); }
+  .tag-cond  { background: rgba(245,158,11,0.15); color: var(--warn);   border: 1px solid rgba(245,158,11,0.25); }
+
+  .edge-desc { font-size: 13px; color: #64748b; margin-bottom: 12px; }
+
+  /* ── INTERVIEW ── */
+  .interview-section {
+    background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(0,212,255,0.04));
+    border: 1px solid rgba(124,58,237,0.25);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 32px;
+  }
+
+  .qa-item {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(124,58,237,0.15);
+  }
+
+  .qa-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+
+  .question {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #c4b5fd;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 10px;
+  }
+
+  .q-badge {
+    background: rgba(124,58,237,0.3);
+    color: #a78bfa;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+
+  .answer { font-size: 14px; color: #94a3b8; line-height: 1.75; padding-left: 50px; }
+  .answer strong { color: var(--accent); font-weight: 500; }
+
+  /* ── TAKEAWAYS ── */
+  .takeaway-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .takeaway-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+  }
+
+  .takeaway-icon { font-size: 28px; margin-bottom: 10px; }
+  .takeaway-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .takeaway-desc  { font-size: 12px; color: #64748b; line-height: 1.5; }
+
+  /* ── CHECKLIST ── */
+  .checklist {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 32px;
+  }
+
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(30,45,69,0.5);
+    font-size: 14px;
+    color: #94a3b8;
+    cursor: pointer;
+  }
+
+  .check-item:last-child { border-bottom: none; }
+
+  .checkbox {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .checkbox:checked { background: var(--accent3); border-color: var(--accent3); }
+  .checkbox:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #000;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* ── YOUTUBE ── */
+  .yt-list { display: flex; flex-direction: column; gap: 10px; margin: 18px 0; }
+
+  .yt-link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    text-decoration: none;
+    transition: all 0.2s;
+    color: inherit;
+  }
+
+  .yt-link:hover { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.05); }
+
+  .yt-icon {
+    width: 36px; height: 36px;
+    background: #ff0000;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    color: white;
+  }
+
+  .yt-title { font-size: 14px; color: var(--text); font-weight: 500; }
+  .yt-url   { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--border), transparent);
+    margin: 40px 0;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 32px 0;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  footer span { color: #a78bfa; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="day-badge">Day 02 · Multi-Agent Stock Market System</div>
+    <h1>LangGraph <span>Deep Dive</span><br>State, Nodes & Edges</h1>
+    <div class="header-meta">
+      <div class="meta-pill"><div class="dot" style="background:#a78bfa"></div> 5 Core Concepts</div>
+      <div class="meta-pill"><div class="dot" style="background:#10b981"></div> 2-Node Pipeline Built</div>
+      <div class="meta-pill"><div class="dot" style="background:#00d4ff"></div> Real AAPL Data</div>
+      <div class="meta-pill"><div class="dot" style="background:#f59e0b"></div> 6 Interview Q&As</div>
+    </div>
+  </header>
+
+  <!-- GOAL -->
+  <div class="goal-box">
+    <h3>🎯 Today's Goals</h3>
+    <ul class="goal-list">
+      <li>Understand State — the shared data object</li>
+      <li>Understand Nodes — Python functions in a graph</li>
+      <li>Understand Edges — normal vs conditional</li>
+      <li>Understand TypedDict for State schema</li>
+      <li>Build a working 2-node LangGraph pipeline</li>
+      <li>See real AAPL data + LLM recommendation</li>
+    </ul>
+  </div>
+
+  <!-- CONCEPT 1 — STATE -->
+  <div class="section-label">🧠 Concept 1</div>
+  <h2><div class="icon" style="background:rgba(0,212,255,0.1)">📋</div> What is State?</h2>
+
+  <div class="concept-block">
+    <div class="concept-title">The Shared Patient File</div>
+    <div class="concept-subtitle">The backbone of every LangGraph system — how agents share data</div>
+
+    <div class="scenario">
+      <div class="scenario-label">🌍 Real World Scenario — Hospital</div>
+      <p>When a patient comes in, every department — doctor, nurse, lab, pharmacist — reads and writes to the <strong style="color:#e2e8f0">same patient file.</strong> Nobody carries their own separate copy. The file is always up to date for whoever needs it next.</p>
+      <p style="margin-top:10px"><strong style="color:#e2e8f0">That patient file = State in LangGraph.</strong></p>
+    </div>
+
+    <div class="flow">
+<span class="node">Price Agent</span>   <span class="arrow">→</span> <span class="write">WRITES</span> current_price, rsi, price_change_pct
+<span class="node">News Agent</span>    <span class="arrow">→</span> <span class="write">WRITES</span> news_headlines, sentiment_score
+<span class="node">Risk Agent</span>    <span class="arrow">→</span> <span class="write">WRITES</span> volatility, risk_level
+<span class="node">Analyst Agent</span> <span class="arrow">→</span> <span class="read">READS</span>  price + news + risk → <span class="write">WRITES</span> recommendation
+<span class="node">Report Agent</span>  <span class="arrow">→</span> <span class="read">READS</span>  everything → <span class="write">WRITES</span> final_report
+    </div>
+
+    <div class="state-flow">
+      <div class="state-agent">
+        <div class="state-agent-name">📈 Price Agent</div>
+        <div class="state-writes">Writes:</div>
+        <span class="state-badge badge-write">current_price</span>
+        <span class="state-badge badge-write">rsi</span>
+        <span class="state-badge badge-write">price_change_pct</span>
+      </div>
+      <div class="state-agent">
+        <div class="state-agent-name">📰 News Agent</div>
+        <div class="state-writes">Writes:</div>
+        <span class="state-badge badge-write">news_headlines</span>
+        <span class="state-badge badge-write">sentiment_score</span>
+      </div>
+      <div class="state-agent">
+        <div class="state-agent-name">⚠️ Risk Agent</div>
+        <div class="state-writes">Writes:</div>
+        <span class="state-badge badge-write">volatility</span>
+        <span class="state-badge badge-write">risk_level</span>
+      </div>
+      <div class="state-agent">
+        <div class="state-agent-name">🧠 Analyst Agent</div>
+        <div class="state-reads">Reads:</div>
+        <span class="state-badge badge-read">price</span>
+        <span class="state-badge badge-read">news</span>
+        <span class="state-badge badge-read">risk</span>
+        <div class="state-writes" style="margin-top:6px">Writes:</div>
+        <span class="state-badge badge-write">recommendation</span>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <div class="callout-icon">💡</div>
+      <div><strong>Think of State as a baton in a relay race.</strong> Each runner (agent) adds something to the baton and passes it on. By the finish line it contains everything from every runner.</div>
+    </div>
+  </div>
+
+  <!-- CONCEPT 2 — NODES -->
+  <div class="divider"></div>
+  <div class="section-label">🧠 Concept 2</div>
+  <h2><div class="icon" style="background:rgba(124,58,237,0.1)">⬡</div> What are Nodes?</h2>
+
+  <div class="concept-block purple">
+    <div class="concept-title">Workstations in a Car Factory</div>
+    <div class="concept-subtitle">Each node does one specific job — nothing more, nothing less</div>
+
+    <div class="scenario">
+      <div class="scenario-label">🌍 Real World Scenario — Car Factory</div>
+      <p>Station 1 fits the engine. Station 2 fits the doors. Station 3 paints the car. Each station does <strong style="color:#e2e8f0">one specific job</strong> and passes the car to the next. <strong style="color:#e2e8f0">Each station = a Node.</strong></p>
+    </div>
+
+    <p style="font-size:14px;color:#94a3b8;margin:16px 0 8px">A Node is just a <strong style="color:#fff">Python function</strong> that:</p>
+
+    <div class="flow">
+<span class="cn">1.</span> Receives the current <span class="node">State</span>
+<span class="cn">2.</span> Does its job  <span class="comment">(fetch data / call LLM / calculate something)</span>
+<span class="cn">3.</span> Returns a dict of <span class="write">updated State fields</span>  <span class="comment">(LangGraph merges this automatically)</span>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-lang">python — anatomy of a node</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+      <pre><span class="ck">def</span> <span class="cf">price_agent_node</span>(state: StockAnalysisState) -> dict:
+    <span class="cm"># ① Read from state</span>
+    ticker = state[<span class="cs">"ticker"</span>]
+
+    <span class="cm"># ② Do the job</span>
+    price_data = fetch_stock_price(ticker)
+
+    <span class="cm"># ③ Return ONLY updated fields</span>
+    <span class="cm"># LangGraph merges this dict with existing state automatically</span>
+    <span class="ck">return</span> {<span class="cs">"current_price"</span>: price_data}</pre>
+    </div>
+
+    <div class="callout purple">
+      <div class="callout-icon">🎯</div>
+      <div>Each node is <strong>completely isolated</strong> — it only knows about State, not about other nodes. This makes them independently testable and replaceable.</div>
+    </div>
+  </div>
+
+  <!-- CONCEPT 3 — EDGES -->
+  <div class="divider"></div>
+  <div class="section-label">🧠 Concept 3</div>
+  <h2><div class="icon" style="background:rgba(16,185,129,0.1)">🔀</div> What are Edges?</h2>
+
+  <div class="concept-block green">
+    <div class="concept-title">Roads Between Cities</div>
+    <div class="concept-subtitle">Edges define how data flows from one node to the next</div>
+
+    <div class="scenario">
+      <div class="scenario-label">🌍 Real World Scenario — Roads</div>
+      <p><strong style="color:#e2e8f0">Mumbai → Pune</strong> — always use this route. (Normal Edge)<br>
+      <strong style="color:#e2e8f0">Delhi → Jaipur OR Agra</strong> — depends on traffic. (Conditional Edge)</p>
+    </div>
+
+    <div class="edge-grid">
+      <div class="edge-card">
+        <div class="edge-card-title">Normal Edge <span class="edge-tag tag-fixed">Fixed</span></div>
+        <div class="edge-desc">Always routes to the same next node. Used when the flow is predictable.</div>
+        <div class="code-block" style="margin:0">
+          <div class="code-header"><div class="code-lang">python</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+          <pre style="font-size:12px">graph.add_edge(
+  <span class="cs">"price_agent"</span>,
+  <span class="cs">"analyst_agent"</span>
+)
+<span class="cm"># price ALWAYS → analyst</span></pre>
+        </div>
+      </div>
+      <div class="edge-card">
+        <div class="edge-card-title">Conditional Edge <span class="edge-tag tag-cond">Dynamic</span></div>
+        <div class="edge-desc">A function decides the next node based on State. Enables loops and branching.</div>
+        <div class="code-block" style="margin:0">
+          <div class="code-header"><div class="code-lang">python</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+          <pre style="font-size:12px"><span class="ck">def</span> <span class="cf">should_retry</span>(state):
+  <span class="ck">if</span> state[<span class="cs">"confidence"</span>] < <span class="cn">0.5</span>:
+    <span class="ck">return</span> <span class="cs">"retry"</span>
+  <span class="ck">return</span> <span class="cs">"report_agent"</span>
+
+graph.add_conditional_edges(
+  <span class="cs">"analyst_agent"</span>, should_retry
+)</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚡</div>
+      <div>Conditional edges are what make LangGraph <strong>truly powerful</strong> — agents can loop, retry, branch, or escalate based on what they find. This is impossible in a simple chain.</div>
+    </div>
+  </div>
+
+  <!-- CONCEPT 4 — GRAPH LIFECYCLE -->
+  <div class="divider"></div>
+  <div class="section-label">🧠 Concept 4</div>
+  <h2><div class="icon" style="background:rgba(245,158,11,0.1)">♻️</div> The Graph Lifecycle</h2>
+
+  <div class="concept-block warn">
+    <div class="concept-title">How LangGraph Executes Your System</div>
+    <div class="concept-subtitle">From definition to final result — step by step</div>
+
+    <div class="lifecycle">
+      <div class="lifecycle-step">
+        <div class="lc-num">1</div>
+        <div><div class="lc-title">Define State Schema</div><div class="lc-desc">TypedDict that describes all data flowing through the system</div></div>
+      </div>
+      <div class="lifecycle-step">
+        <div class="lc-num">2</div>
+        <div><div class="lc-title">Create Nodes</div><div class="lc-desc">Python functions — each does one specific job</div></div>
+      </div>
+      <div class="lifecycle-step">
+        <div class="lc-num">3</div>
+        <div><div class="lc-title">Connect with Edges</div><div class="lc-desc">Define how data flows — normal or conditional</div></div>
+      </div>
+      <div class="lifecycle-step">
+        <div class="lc-num">4</div>
+        <div><div class="lc-title">Set Entry Point</div><div class="lc-desc">Which node runs first when graph is invoked</div></div>
+      </div>
+      <div class="lifecycle-step">
+        <div class="lc-num">5</div>
+        <div><div class="lc-title">Compile</div><div class="lc-desc">Validates graph structure, checks all edges connect to real nodes</div></div>
+      </div>
+      <div class="lifecycle-step">
+        <div class="lc-num">6</div>
+        <div><div class="lc-title">Invoke with Initial State</div><div class="lc-desc">Pass starting data — LangGraph runs node by node, updating State each step</div></div>
+      </div>
+      <div class="lifecycle-step" style="border-bottom:none">
+        <div class="lc-num" style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:#10b981">✓</div>
+        <div><div class="lc-title" style="color:#10b981">Reaches END → Returns Final State</div><div class="lc-desc">All agents have run, all fields are filled, result is ready</div></div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <div class="callout-icon">🎲</div>
+      <div><strong>Board game analogy:</strong> Board = Graph | Pieces = State | Squares = Nodes | Rules = Edges | Win condition = END node</div>
+    </div>
+  </div>
+
+  <!-- CONCEPT 5 — TYPEDDICT -->
+  <div class="divider"></div>
+  <div class="section-label">🧠 Concept 5</div>
+  <h2><div class="icon" style="background:rgba(239,68,68,0.1)">📐</div> TypedDict — State Schema</h2>
+
+  <div class="concept-block red">
+    <div class="concept-title">The Blueprint of Your Data</div>
+    <div class="concept-subtitle">Documents every field, its type, and which agent fills it</div>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-lang">python — core/state.py</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+      <pre><span class="ck">from</span> typing <span class="ck">import</span> TypedDict, List, Optional
+
+<span class="ck">class</span> <span class="cf">StockAnalysisState</span>(TypedDict):
+    <span class="cm"># ── INPUT ─────────────────────────────────────</span>
+    ticker: str                   <span class="cm"># "AAPL" — user provides this</span>
+
+    <span class="cm"># ── PRICE AGENT fills these ───────────────────</span>
+    current_price:    Optional[float]      <span class="cm"># e.g. 189.3</span>
+    price_change_pct: Optional[float]      <span class="cm"># e.g. +1.2%</span>
+    rsi:              Optional[float]      <span class="cm"># 0-100, above 70 = overbought</span>
+
+    <span class="cm"># ── NEWS AGENT fills these ────────────────────</span>
+    news_headlines:   Optional[List[str]]  <span class="cm"># ["Apple hits record...", ...]</span>
+    sentiment_score:  Optional[float]      <span class="cm"># -1.0 to +1.0</span>
+
+    <span class="cm"># ── RISK AGENT fills these ────────────────────</span>
+    volatility:       Optional[float]      <span class="cm"># higher = riskier</span>
+    risk_level:       Optional[str]        <span class="cm"># "LOW" / "MEDIUM" / "HIGH"</span>
+
+    <span class="cm"># ── ANALYST AGENT fills these ─────────────────</span>
+    recommendation:   Optional[str]        <span class="cm"># "BUY" / "HOLD" / "SELL"</span>
+    confidence:       Optional[float]      <span class="cm"># 0.0 to 1.0</span>
+    reasoning:        Optional[str]        <span class="cm"># 2-3 sentence explanation</span>
+
+    <span class="cm"># ── REPORT AGENT fills this ───────────────────</span>
+    final_report:     Optional[str]        <span class="cm"># full natural language report</span>
+
+    <span class="cm"># ── METADATA ──────────────────────────────────</span>
+    errors:           Optional[List[str]]  <span class="cm"># any errors during processing</span></pre>
+    </div>
+
+    <div class="compare-table" style="margin-top:16px">
+      <table class="compare-table">
+        <tr><th>Why TypedDict?</th><th>What it gives you</th></tr>
+        <tr><td>Documents data flow</td><td>Anyone reading code immediately knows what flows through the system</td></tr>
+        <tr><td>Type safety</td><td>Catches bugs early if agent returns wrong data type</td></tr>
+        <tr><td>Optional fields</td><td>Agents only fill their own fields — others stay None until filled</td></tr>
+        <tr><td>Interview signal</td><td>Shows you think about data contracts — senior engineer behavior</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- HANDS ON -->
+  <div class="divider"></div>
+  <div class="section-label">💻 Hands-On</div>
+  <h2><div class="icon" style="background:rgba(16,185,129,0.1)">⚙️</div> Build the 2-Node Pipeline</h2>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+      <div class="step-title">core/state.py — Define the State</div>
+      <div class="step-desc">The shared data object every agent reads from and writes to. Create this first — it's the foundation.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">python — core/state.py</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre><span class="ck">from</span> typing <span class="ck">import</span> TypedDict, List, Optional
+
+<span class="ck">class</span> <span class="cf">StockAnalysisState</span>(TypedDict):
+    ticker:           str
+    current_price:    Optional[float]
+    price_change_pct: Optional[float]
+    rsi:              Optional[float]
+    news_headlines:   Optional[List[str]]
+    sentiment_score:  Optional[float]
+    volatility:       Optional[float]
+    risk_level:       Optional[str]
+    recommendation:   Optional[str]
+    confidence:       Optional[float]
+    reasoning:        Optional[str]
+    final_report:     Optional[str]
+    errors:           Optional[List[str]]</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+      <div class="step-title">agents/price_agent.py — Fetch Real Stock Data + RSI</div>
+      <div class="step-desc">Uses yFinance to get live AAPL data. Calculates RSI manually so you truly understand it.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">python — agents/price_agent.py</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre><span class="ck">import</span> yfinance <span class="ck">as</span> yf
+<span class="cm"># yfinance = Yahoo Finance's free Python library for real stock data</span>
+
+<span class="ck">from</span> core.state <span class="ck">import</span> StockAnalysisState
+
+<span class="ck">def</span> <span class="cf">price_agent_node</span>(state: StockAnalysisState) -> dict:
+
+    ticker = state[<span class="cs">"ticker"</span>]
+    <span class="cf">print</span>(<span class="cs">f"📈 Price Agent: Fetching {ticker}..."</span>)
+
+    <span class="ck">try</span>:
+        stock = yf.Ticker(ticker)
+        <span class="cm"># yf.Ticker("AAPL") = object connected to AAPL's data on Yahoo Finance</span>
+
+        hist = stock.history(period=<span class="cs">"1mo"</span>, interval=<span class="cs">"1d"</span>)
+        <span class="cm"># period="1mo" = last 1 month of data</span>
+        <span class="cm"># interval="1d" = one row per day (daily candles)</span>
+        <span class="cm"># Returns DataFrame: Open, High, Low, Close, Volume columns</span>
+
+        current_price = <span class="cf">round</span>(<span class="cf">float</span>(hist[<span class="cs">"Close"</span>].iloc[-<span class="cn">1</span>]), <span class="cn">2</span>)
+        <span class="cm"># iloc[-1] = last row = most recent day's closing price</span>
+
+        prev_price = <span class="cf">float</span>(hist[<span class="cs">"Close"</span>].iloc[-<span class="cn">2</span>])
+        <span class="cm"># iloc[-2] = second last row = yesterday's close</span>
+
+        price_change_pct = <span class="cf">round</span>(((current_price - prev_price) / prev_price) * <span class="cn">100</span>, <span class="cn">2</span>)
+        <span class="cm"># Formula: ((today - yesterday) / yesterday) × 100</span>
+
+        <span class="cm"># ── RSI Calculation ───────────────────────────────────</span>
+        closes = hist[<span class="cs">"Close"</span>]
+        delta = closes.diff()           <span class="cm"># daily price changes</span>
+        gain  = delta.clip(lower=<span class="cn">0</span>)    <span class="cm"># keep only positive changes</span>
+        loss  = -delta.clip(upper=<span class="cn">0</span>)   <span class="cm"># keep only negative (make positive)</span>
+
+        avg_gain = gain.rolling(window=<span class="cn">14</span>).mean().iloc[-<span class="cn">1</span>]
+        avg_loss = loss.rolling(window=<span class="cn">14</span>).mean().iloc[-<span class="cn">1</span>]
+        <span class="cm"># 14-day rolling average = industry standard RSI window</span>
+
+        <span class="ck">if</span> avg_loss == <span class="cn">0</span>:
+            rsi = <span class="cn">100.0</span>             <span class="cm"># no losses at all = maximum overbought</span>
+        <span class="ck">else</span>:
+            rs  = avg_gain / avg_loss  <span class="cm"># RS = Relative Strength ratio</span>
+            rsi = <span class="cf">round</span>(<span class="cn">100</span> - (<span class="cn">100</span> / (<span class="cn">1</span> + rs)), <span class="cn">2</span>)
+            <span class="cm"># RSI formula: 100 - (100 / (1 + RS))</span>
+            <span class="cm"># Above 70 = overbought | Below 30 = oversold | 30-70 = neutral</span>
+
+        <span class="cf">print</span>(<span class="cs">f"✅ ${current_price} | {price_change_pct}% | RSI: {rsi}"</span>)
+
+        <span class="ck">return</span> {
+            <span class="cs">"current_price"</span>:    current_price,
+            <span class="cs">"price_change_pct"</span>: price_change_pct,
+            <span class="cs">"rsi"</span>:              rsi,
+            <span class="cs">"errors"</span>: []
+        }
+
+    <span class="ck">except</span> Exception <span class="ck">as</span> e:
+        <span class="cf">print</span>(<span class="cs">f"❌ Price Agent Error: {e}"</span>)
+        <span class="ck">return</span> {
+            <span class="cs">"current_price"</span>: <span class="ck">None</span>, <span class="cs">"price_change_pct"</span>: <span class="ck">None</span>,
+            <span class="cs">"rsi"</span>: <span class="ck">None</span>, <span class="cs">"errors"</span>: [<span class="cs">f"Price Agent failed: {str(e)}"</span>]
+        }</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+      <div class="step-title">agents/analyst_agent.py — LLM Recommendation</div>
+      <div class="step-desc">Feeds real price data into LLaMA 3.1. This is why agents beat simple prompts — we give actual data, not guesses.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">python — agents/analyst_agent.py</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre><span class="ck">from</span> langchain_groq <span class="ck">import</span> ChatGroq
+<span class="ck">from</span> core.state  <span class="ck">import</span> StockAnalysisState
+<span class="ck">from</span> core.config <span class="ck">import</span> config
+
+llm = <span class="cf">ChatGroq</span>(api_key=config.GROQ_API_KEY, model_name=config.MODEL_NAME)
+<span class="cm"># Initialize once at module level — more efficient than creating inside function</span>
+
+<span class="ck">def</span> <span class="cf">analyst_agent_node</span>(state: StockAnalysisState) -> dict:
+
+    <span class="cf">print</span>(<span class="cs">f"🧠 Analyst Agent: Analyzing {state['ticker']}..."</span>)
+
+    prompt = <span class="cs">f"""You are a senior stock market analyst.
+Analyze this real-time data and give a recommendation:
+
+Stock:        {state['ticker']}
+Price:        ${state.get('current_price', 'N/A')}
+Change:       {state.get('price_change_pct', 'N/A')}%
+RSI:          {state.get('rsi', 'N/A')}
+
+RSI Guide: Above 70 = overbought | Below 30 = oversold | 30-70 = neutral
+
+Respond in EXACTLY this format:
+RECOMMENDATION: [BUY/HOLD/SELL]
+CONFIDENCE: [0.0 to 1.0]
+REASONING: [2-3 sentences]"""</span>
+    <span class="cm"># Structured prompt = structured output = easy to parse</span>
+    <span class="cm"># We feed REAL data — agent reasons over facts, not training data</span>
+
+    <span class="ck">try</span>:
+        response = llm.invoke(prompt)
+        raw_text = response.content
+        <span class="cm"># response.content = the text LLaMA returned</span>
+
+        lines = raw_text.strip().split(<span class="cs">'\n'</span>)
+        <span class="cm"># split('\n') breaks text into list of lines for easy parsing</span>
+
+        recommendation, confidence, reasoning = <span class="cs">"HOLD"</span>, <span class="cn">0.5</span>, raw_text
+        <span class="cm"># defaults in case parsing fails</span>
+
+        <span class="ck">for</span> line <span class="ck">in</span> lines:
+            <span class="ck">if</span> line.startswith(<span class="cs">"RECOMMENDATION:"</span>):
+                recommendation = line.split(<span class="cs">":"</span>)[<span class="cn">1</span>].strip()
+            <span class="ck">elif</span> line.startswith(<span class="cs">"CONFIDENCE:"</span>):
+                confidence = <span class="cf">float</span>(line.split(<span class="cs">":"</span>)[<span class="cn">1</span>].strip())
+            <span class="ck">elif</span> line.startswith(<span class="cs">"REASONING:"</span>):
+                reasoning = line.split(<span class="cs">":"</span>, <span class="cn">1</span>)[<span class="cn">1</span>].strip()
+                <span class="cm"># split(":", 1) = split on FIRST ":" only</span>
+                <span class="cm"># reasoning text might contain ":" so we only split once</span>
+
+        <span class="cf">print</span>(<span class="cs">f"✅ {recommendation} (confidence: {confidence})"</span>)
+        <span class="ck">return</span> {<span class="cs">"recommendation"</span>: recommendation, <span class="cs">"confidence"</span>: confidence, <span class="cs">"reasoning"</span>: reasoning}
+
+    <span class="ck">except</span> Exception <span class="ck">as</span> e:
+        <span class="ck">return</span> {<span class="cs">"recommendation"</span>: <span class="cs">"HOLD"</span>, <span class="cs">"confidence"</span>: <span class="cn">0.0</span>, <span class="cs">"reasoning"</span>: <span class="cs">f"Failed: {e}"</span>}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-content">
+      <div class="step-title">agents/graph.py — Wire the Graph</div>
+      <div class="step-desc">Connect the two nodes with edges. Set entry point. Compile. This is the LangGraph "wiring."</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">python — agents/graph.py</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre><span class="ck">from</span> langgraph.graph <span class="ck">import</span> StateGraph, END
+<span class="cm"># StateGraph = main class to build your graph</span>
+<span class="cm"># END       = special constant that marks where the graph stops</span>
+
+<span class="ck">from</span> core.state             <span class="ck">import</span> StockAnalysisState
+<span class="ck">from</span> agents.price_agent    <span class="ck">import</span> price_agent_node
+<span class="ck">from</span> agents.analyst_agent  <span class="ck">import</span> analyst_agent_node
+
+<span class="ck">def</span> <span class="cf">build_graph</span>():
+
+    graph = <span class="cf">StateGraph</span>(StockAnalysisState)
+    <span class="cm"># Tells LangGraph: "data flowing through this graph follows StockAnalysisState"</span>
+
+    graph.add_node(<span class="cs">"price_agent"</span>,   price_agent_node)
+    graph.add_node(<span class="cs">"analyst_agent"</span>, analyst_agent_node)
+    <span class="cm"># add_node(name, function) — name is used in edges</span>
+
+    graph.set_entry_point(<span class="cs">"price_agent"</span>)
+    <span class="cm"># Which node runs FIRST when graph is invoked</span>
+
+    graph.add_edge(<span class="cs">"price_agent"</span>, <span class="cs">"analyst_agent"</span>)
+    <span class="cm"># Normal edge — price_agent ALWAYS goes to analyst_agent next</span>
+
+    graph.add_edge(<span class="cs">"analyst_agent"</span>, END)
+    <span class="cm"># After analyst finishes, graph is done</span>
+
+    <span class="ck">return</span> graph.compile()
+    <span class="cm"># compile() validates structure + prepares execution engine</span>
+    <span class="cm"># Like "building" a program before running it</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-content">
+      <div class="step-title">run_day2.py — Run and Test</div>
+      <div class="step-desc">Invoke the graph with initial state. Watch each agent run and fill their fields.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">python — run_day2.py</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre><span class="ck">from</span> agents.graph <span class="ck">import</span> build_graph
+
+<span class="ck">def</span> <span class="cf">main</span>():
+    graph = <span class="cf">build_graph</span>()
+    <span class="cf">print</span>(<span class="cs">"✅ Graph compiled\n"</span>)
+
+    initial_state = {
+        <span class="cs">"ticker"</span>: <span class="cs">"AAPL"</span>,      <span class="cm"># only this is filled at start</span>
+        <span class="cs">"current_price"</span>:    <span class="ck">None</span>, <span class="cm"># Price Agent will fill</span>
+        <span class="cs">"price_change_pct"</span>: <span class="ck">None</span>, <span class="cm"># Price Agent will fill</span>
+        <span class="cs">"rsi"</span>:              <span class="ck">None</span>, <span class="cm"># Price Agent will fill</span>
+        <span class="cs">"news_headlines"</span>:   <span class="ck">None</span>, <span class="cm"># News Agent — Day 3</span>
+        <span class="cs">"sentiment_score"</span>:  <span class="ck">None</span>, <span class="cm"># News Agent — Day 3</span>
+        <span class="cs">"volatility"</span>:       <span class="ck">None</span>, <span class="cm"># Risk Agent — Day 4</span>
+        <span class="cs">"risk_level"</span>:       <span class="ck">None</span>, <span class="cm"># Risk Agent — Day 4</span>
+        <span class="cs">"recommendation"</span>:   <span class="ck">None</span>, <span class="cm"># Analyst Agent will fill</span>
+        <span class="cs">"confidence"</span>:       <span class="ck">None</span>, <span class="cm"># Analyst Agent will fill</span>
+        <span class="cs">"reasoning"</span>:        <span class="ck">None</span>, <span class="cm"># Analyst Agent will fill</span>
+        <span class="cs">"final_report"</span>:     <span class="ck">None</span>, <span class="cm"># Report Agent — Day 7</span>
+        <span class="cs">"errors"</span>: []
+    }
+
+    final_state = graph.invoke(initial_state)
+    <span class="cm"># .invoke() runs the full graph synchronously</span>
+    <span class="cm"># Returns FINAL state after all nodes have executed</span>
+
+    <span class="cf">print</span>(<span class="cs">"\n📊 FINAL RESULTS"</span>)
+    <span class="cf">print</span>(<span class="cs">f"Price:          ${final_state['current_price']}"</span>)
+    <span class="cf">print</span>(<span class="cs">f"Change:         {final_state['price_change_pct']}%"</span>)
+    <span class="cf">print</span>(<span class="cs">f"RSI:            {final_state['rsi']}"</span>)
+    <span class="cf">print</span>(<span class="cs">f"Recommendation: {final_state['recommendation']}"</span>)
+    <span class="cf">print</span>(<span class="cs">f"Confidence:     {final_state['confidence']}"</span>)
+    <span class="cf">print</span>(<span class="cs">f"Reasoning:      {final_state['reasoning']}"</span>)
+
+<span class="ck">if</span> __name__ == <span class="cs">"__main__"</span>:
+    <span class="cm"># Only runs main() if this file is run directly</span>
+    <span class="cm"># If someone imports this file, main() won't auto-run</span>
+    <span class="cf">main</span>()</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">bash</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre>python run_day2.py</pre>
+      </div>
+      <div class="callout success">
+        <div class="callout-icon">✅</div>
+        <div>If you see real AAPL price + a BUY/HOLD/SELL recommendation → <strong>your first LangGraph pipeline is working!</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YOUTUBE -->
+  <div class="divider"></div>
+  <div class="section-label">🔗 References</div>
+  <h2><div class="icon" style="background:rgba(239,68,68,0.1)">▶️</div> YouTube References</h2>
+
+  <div class="yt-list">
+    <a href="https://www.youtube.com/watch?v=R-o_a6dvzQM" target="_blank" class="yt-link">
+      <div class="yt-icon">▶</div>
+      <div><div class="yt-title">LangGraph Full Tutorial</div><div class="yt-url">youtube.com/watch?v=R-o_a6dvzQM</div></div>
+    </a>
+    <a href="https://www.youtube.com/watch?v=jGg_1h0qzaM" target="_blank" class="yt-link">
+      <div class="yt-icon">▶</div>
+      <div><div class="yt-title">State & Nodes Explained</div><div class="yt-url">youtube.com/watch?v=jGg_1h0qzaM</div></div>
+    </a>
+    <a href="https://www.youtube.com/watch?v=na2V8P3XNQM" target="_blank" class="yt-link">
+      <div class="yt-icon">▶</div>
+      <div><div class="yt-title">TypedDict in Python</div><div class="yt-url">youtube.com/watch?v=na2V8P3XNQM</div></div>
+    </a>
+  </div>
+
+  <!-- INTERVIEW -->
+  <div class="divider"></div>
+  <div class="interview-section">
+    <h2 style="color:#a78bfa"><div class="icon" style="background:rgba(124,58,237,0.15)">❓</div> Interview Questions & Answers</h2>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q1</span> What is State in LangGraph and why is it important?</div>
+      <div class="answer">State is a <strong>shared data object</strong> passed through every node in the graph. Each agent reads from it and writes its outputs back to it — like a hospital patient file that every department updates. Without State, agents would have no way to share data or build on each other's work.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q2</span> What is a Node in LangGraph? How simple or complex can it be?</div>
+      <div class="answer">A Node is simply a <strong>Python function</strong> that receives current State, does its job, and returns a dict of updated fields. LangGraph merges the returned dict automatically. It can be as simple as a calculation or as complex as an LLM call with tool use. Each node is isolated — it only knows about State, not about other nodes.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q3</span> What are the two types of Edges? When would you use each?</div>
+      <div class="answer"><strong>Normal edges</strong> always route to the same next node — used when flow is fixed and predictable (e.g., price_agent always feeds analyst_agent). <strong>Conditional edges</strong> use a function to decide based on State — used for loops, retries, or branching (e.g., if confidence is low, retry analysis; otherwise proceed to report).</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q4</span> Why use TypedDict for State definition?</div>
+      <div class="answer">TypedDict <strong>documents the full data contract</strong> of the system — every field, its type, and which agent fills it. It catches bugs early if an agent returns the wrong type, makes code self-documenting, and in a team setting anyone can look at the State and immediately understand the entire data flow. It shows production-level thinking.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q5</span> What does graph.compile() do and why is it needed?</div>
+      <div class="answer">compile() <strong>validates the graph structure</strong> — checks that all edges connect to real nodes, entry points are set, and the graph can reach END. It also prepares the execution engine. Without compiling, you cannot invoke the graph. Think of it like compiling a program before running it — it catches structural errors upfront.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q6</span> How do you handle errors in individual agents without crashing the whole pipeline?</div>
+      <div class="answer">Each node has a <strong>try/except block.</strong> On failure it returns None for its output fields and appends the error message to the errors list in State. This way one agent failing doesn't crash the entire graph — downstream agents can check the errors field and handle missing data gracefully. The orchestrator can also inspect errors and decide whether to retry or return a partial result.</div>
+    </div>
+  </div>
+
+  <!-- TAKEAWAYS -->
+  <div class="section-label">💡 Key Takeaways</div>
+  <h2 style="margin-bottom:20px"><div class="icon" style="background:rgba(245,158,11,0.1)">🏆</div> What You Built & Learned Today</h2>
+
+  <div class="takeaway-grid">
+    <div class="takeaway-card">
+      <div class="takeaway-icon">📋</div>
+      <div class="takeaway-title">State = Patient File</div>
+      <div class="takeaway-desc">Shared data object — every agent reads from it, writes to it, passes it on</div>
+    </div>
+    <div class="takeaway-card">
+      <div class="takeaway-icon">⬡</div>
+      <div class="takeaway-title">Node = Python Function</div>
+      <div class="takeaway-desc">Receives State → does job → returns updated fields. Isolated and testable</div>
+    </div>
+    <div class="takeaway-card">
+      <div class="takeaway-icon">🔀</div>
+      <div class="takeaway-title">Two Types of Edges</div>
+      <div class="takeaway-desc">Normal (fixed path) and Conditional (logic-based routing, enables loops)</div>
+    </div>
+    <div class="takeaway-card">
+      <div class="takeaway-icon">📐</div>
+      <div class="takeaway-title">TypedDict = Data Contract</div>
+      <div class="takeaway-desc">Documents every field, type, and owner — senior engineer signal</div>
+    </div>
+    <div class="takeaway-card">
+      <div class="takeaway-icon">⚙️</div>
+      <div class="takeaway-title">compile() = Validation</div>
+      <div class="takeaway-desc">Validates graph structure before execution — catches structural bugs early</div>
+    </div>
+    <div class="takeaway-card">
+      <div class="takeaway-icon">🛡️</div>
+      <div class="takeaway-title">try/except in Every Node</div>
+      <div class="takeaway-desc">One agent failure should never crash the whole pipeline — production thinking</div>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div class="divider"></div>
+  <div class="section-label">✅ Day 2 Checklist</div>
+  <h2 style="margin-bottom:20px"><div class="icon" style="background:rgba(16,185,129,0.1)">📋</div> Before Moving to Day 3</h2>
+
+  <div class="checklist">
+    <label class="check-item"><input type="checkbox" class="checkbox"> Understood State — shared data object, like a patient file / relay baton</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Understood Nodes — Python functions that read State, do job, return updated fields</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Understood Normal Edge vs Conditional Edge difference</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Understood TypedDict — defines data contract for the system</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Understood full graph lifecycle — define → nodes → edges → compile → invoke</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> core/state.py created with full StockAnalysisState</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> agents/price_agent.py created — fetches real price + calculates RSI</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> agents/analyst_agent.py created — sends real data to LLaMA, parses response</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> agents/graph.py created — StateGraph built, nodes added, edges wired, compiled</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> run_day2.py executed successfully</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Saw real AAPL price data in terminal output</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Saw LLM-generated BUY/HOLD/SELL recommendation</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Can explain all 6 interview questions confidently</label>
+  </div>
+
+  <footer>
+    <div>Multi-Agent Stock Market System · <span>Day 2 of 30</span></div>
+    <div style="margin-top:6px;font-size:12px">Next → Day 3: News Agent + Tavily Web Search + Sentiment Analysis</div>
+  </footer>
+
+</div>
+</body>
+</html>

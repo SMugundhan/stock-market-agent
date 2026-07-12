@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stock Analysis Agent — Day 10</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f14; --surface: #13161d; --card: #1a1e29; --border: #252a38;
+    --day10: #f59e0b; --day10-dim: rgba(245,158,11,0.12); --day10-glow: rgba(245,158,11,0.22);
+    --green: #00e5a0; --cyan: #00c2ff; --orange: #ff6b35; --red: #ff4d6a; --purple: #a78bfa;
+    --text: #e8eaf2; --muted: #7a8099; --faint: #3a3f55;
+    --mono: 'JetBrains Mono', monospace; --sans: 'Inter', sans-serif; --display: 'Syne', sans-serif;
+    --radius: 10px; --radius-lg: 16px;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  nav { position: sticky; top: 0; z-index: 100; background: rgba(13,15,20,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; height: 56px; }
+  .nav-brand { font-family: var(--display); font-size: 16px; letter-spacing: 0.04em; color: var(--text); margin-right: auto; display: flex; align-items: center; gap: 8px; }
+  .nav-brand span { color: var(--day10); }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links a { text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 6px; transition: background 0.2s, color 0.2s; color: var(--muted); }
+  .nav-links a:hover { background: var(--card); color: var(--text); }
+  .nav-links a.d10 { color: var(--day10); }
+
+  .hero { padding: 72px 32px 56px; max-width: 900px; margin: 0 auto; text-align: center; }
+  .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--muted); background: var(--card); border: 1px solid var(--border); border-radius: 99px; padding: 5px 14px; margin-bottom: 28px; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--day10); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .hero h1 { font-family: var(--display); font-size: clamp(30px,5vw,50px); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; color: var(--text); margin-bottom: 20px; }
+  .hero h1 .accent { color: var(--day10); }
+  .hero-sub { font-size: 16px; color: var(--muted); max-width: 600px; margin: 0 auto 44px; }
+
+  /* upgrade vis */
+  .upgrade-vis { display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; margin-top: 32px; }
+  .upgrade-box { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 24px; min-width: 180px; text-align: center; }
+  .upgrade-box .ub-day { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 8px; }
+  .upgrade-box .ub-title { font-family: var(--display); font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .upgrade-box .ub-desc { font-size: 12px; color: var(--muted); }
+  .upgrade-box.old .ub-title { color: var(--muted); }
+  .upgrade-box.new { border-color: var(--day10); box-shadow: 0 0 22px var(--day10-glow); }
+  .upgrade-box.new .ub-title { color: var(--day10); }
+  .upgrade-arrow { font-size: 28px; color: var(--day10); padding: 0 16px; align-self: center; }
+
+  .container { max-width: 940px; margin: 0 auto; padding: 0 32px 80px; }
+  .section { margin-bottom: 40px; }
+  .section-label { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-label .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 4px; }
+  .section-label h2 { font-family: var(--display); font-size: 19px; font-weight: 700; }
+
+  .goal-card { background: var(--card); border: 1px solid rgba(245,158,11,0.3); border-radius: var(--radius-lg); padding: 24px 28px; margin-bottom: 36px; box-shadow: 0 0 30px var(--day10-glow); }
+  .goal-card h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; color: var(--day10); margin-bottom: 14px; }
+  .goal-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .goal-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+  .goal-list li::before { content: '→'; font-family: var(--mono); font-size: 13px; color: var(--day10); flex-shrink: 0; margin-top: 2px; }
+
+  .concept { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 16px; }
+  .concept-head { display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: background 0.2s; }
+  .concept-head:hover { background: rgba(255,255,255,0.02); }
+  .concept-num { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; flex-shrink: 0; background: var(--day10-dim); color: var(--day10); }
+  .concept-head h3 { font-size: 16px; font-weight: 600; flex: 1; }
+  .chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; }
+  .concept.open .chevron { transform: rotate(180deg); }
+  .concept-body { display: none; padding: 20px 24px 24px; }
+  .concept.open .concept-body { display: block; }
+
+  .analogy { background: var(--surface); border-left: 3px solid var(--day10); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin: 16px 0; font-size: 14px; }
+  .analogy strong.label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--day10); margin-bottom: 10px; }
+
+  .code-wrap { background: #0a0c11; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 14px 0; }
+  .code-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .code-bar .filename { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .code-bar .lang { font-family: var(--mono); font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.1em; }
+  pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.65; padding: 18px 20px; overflow-x: auto; color: #c9d1e8; tab-size: 4; white-space: pre; }
+  .cm { color: #5c6680; } .ck { color: var(--day10); } .cs { color: #86e1a0; } .cn { color: #ffd166; } .cf { color: var(--cyan); } .cp { color: var(--orange); }
+
+  /* rule vs llm comparison */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  @media(max-width:600px) { .compare-grid { grid-template-columns: 1fr; } }
+  .cmp-card { border-radius: var(--radius-lg); padding: 20px; border: 1px solid var(--border); }
+  .cmp-card.rule { background: rgba(122,128,153,0.06); }
+  .cmp-card.llm { background: var(--day10-dim); border-color: rgba(245,158,11,0.3); }
+  .cmp-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .cmp-card.llm h4 { color: var(--day10); }
+  .cmp-card ul { list-style: none; padding: 0; }
+  .cmp-card li { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+
+  /* tool anatomy */
+  .tool-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin: 16px 0; }
+  .tool-card-title { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 14px; }
+  .tool-parts { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+  @media(max-width:600px) { .tool-parts { grid-template-columns: 1fr; } }
+  .tool-part { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .tool-part .tp-num { font-family: var(--display); font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  .tool-part .tp-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .tool-part .tp-desc { font-size: 12px; color: var(--muted); }
+  .tool-part:nth-child(1) .tp-num { color: var(--cyan); }
+  .tool-part:nth-child(2) .tp-num { color: var(--day10); }
+  .tool-part:nth-child(3) .tp-num { color: var(--purple); }
+
+  /* react loop vis */
+  .react-loop { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin: 16px 0; }
+  .react-loop-title { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 18px; }
+  .react-step { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 8px; }
+  .react-step-num { font-family: var(--mono); font-size: 11px; font-weight: 700; background: var(--day10-dim); color: var(--day10); padding: 3px 9px; border-radius: 4px; flex-shrink: 0; margin-top: 2px; }
+  .react-step-text { font-size: 13px; color: #b0bbd4; }
+  .react-step-text strong { color: var(--text); }
+  .react-connector { margin-left: 20px; color: var(--faint); font-size: 12px; padding: 2px 0; }
+
+  /* memory pattern cards */
+  .memory-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin: 18px 0; }
+  @media(max-width:600px) { .memory-grid { grid-template-columns: 1fr; } }
+  .mem-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
+  .mem-card .mc-icon { font-size: 24px; margin-bottom: 8px; }
+  .mem-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .mem-card .mc-desc { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .mem-card .mc-example { font-family: var(--mono); font-size: 11px; color: var(--day10); background: var(--day10-dim); padding: 6px 10px; border-radius: 4px; }
+  .mem-card:nth-child(1) { border-color: rgba(0,194,255,0.3); }
+  .mem-card:nth-child(1) h4 { color: var(--cyan); }
+  .mem-card:nth-child(2) { border-color: rgba(245,158,11,0.3); }
+  .mem-card:nth-child(2) h4 { color: var(--day10); }
+  .mem-card:nth-child(3) { border-color: rgba(167,139,250,0.3); }
+  .mem-card:nth-child(3) h4 { color: var(--purple); }
+
+  /* tabs */
+  .tabs { margin-bottom: 28px; }
+  .tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 22px; overflow-x: auto; }
+  .tab-btn { font-family: var(--sans); font-size: 13px; font-weight: 500; padding: 10px 18px; background: none; border: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s; white-space: nowrap; margin-bottom: -1px; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--day10); border-bottom-color: var(--day10); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* terminal */
+  .terminal { background: #060708; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 16px 0; }
+  .terminal-bar { display: flex; gap: 6px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f57; } .terminal-dot.yellow { background: #febc2e; } .terminal-dot.green { background: #28c840; }
+  .terminal pre { color: #8fdb9a; font-size: 12px; padding: 16px 20px; }
+
+  /* endpoint diff */
+  .endpoint-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  @media(max-width:600px) { .endpoint-diff { grid-template-columns: 1fr; } }
+  .ep-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
+  .ep-card h4 { font-family: var(--mono); font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+  .ep-card.analyze h4 { color: var(--cyan); }
+  .ep-card.chat h4 { color: var(--day10); }
+  .ep-card ul { list-style: none; padding: 0; }
+  .ep-card li { font-size: 13px; color: var(--muted); margin-bottom: 5px; padding-left: 0; }
+
+  /* qa */
+  .qa-list { display: flex; flex-direction: column; gap: 10px; }
+  .qa-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .qa-q { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px; cursor: pointer; user-select: none; transition: background 0.2s; }
+  .qa-q:hover { background: rgba(255,255,255,0.02); }
+  .qa-num { font-family: var(--mono); font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 2px; padding: 2px 8px; border-radius: 4px; background: var(--day10-dim); color: var(--day10); }
+  .qa-qtext { font-size: 14px; font-weight: 500; flex: 1; }
+  .qa-chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; margin-left: auto; flex-shrink: 0; }
+  .qa-item.open .qa-chevron { transform: rotate(180deg); }
+  .qa-a { display: none; padding: 14px 20px 16px 52px; font-size: 14px; color: #b0bbd4; line-height: 1.7; border-top: 1px solid var(--border); }
+  .qa-item.open .qa-a { display: block; }
+
+  /* checklist */
+  .checklist { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+  .checklist h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 16px; }
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media(max-width:600px) { .check-grid { grid-template-columns: 1fr; } }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; padding: 6px 0; transition: color 0.2s; }
+  .check-item.checked { color: var(--text); }
+  .check-box { width: 16px; height: 16px; border: 1px solid var(--faint); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; transition: background 0.2s, border-color 0.2s; font-size: 10px; }
+  .check-item.checked .check-box { background: var(--day10); border-color: var(--day10); color: #000; }
+
+  .yt-links { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+  .yt-link { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; text-decoration: none; font-size: 13px; color: var(--text); transition: border-color 0.2s, background 0.2s; }
+  .yt-link:hover { border-color: var(--day10); background: var(--day10-dim); }
+  .yt-icon { color: var(--red, #ff4d6a); font-size: 15px; }
+
+  .callout { border-radius: var(--radius); padding: 16px 20px; margin: 14px 0; font-size: 14px; }
+  .callout.info { background: var(--day10-dim); border: 1px solid rgba(245,158,11,0.3); color: #fde68a; }
+  .callout strong { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; display: block; margin-bottom: 6px; }
+
+  code { font-family: var(--mono); font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; color: var(--day10); }
+  p { margin-bottom: 12px; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; font-size: 14px; }
+  strong { color: var(--text); font-weight: 600; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">⬡ <span>Stock</span>Agent</div>
+  <div class="nav-links">
+    <a href="#concepts" class="d10">Concepts</a>
+    <a href="#code" class="d10">Code</a>
+    <a href="#interview" class="d10">Interview</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">
+    <span class="dot"></span>
+    LangGraph Agent Series · Day 10
+  </div>
+  <h1>
+    <span class="accent">LLM-Driven</span> Tool Calling<br/>
+    + Agent Memory Patterns
+  </h1>
+  <p class="hero-sub">
+    Upgrade your Orchestrator from rigid if/else logic to a truly intelligent
+    system that autonomously decides which tools to call for any query.
+  </p>
+
+  <div class="upgrade-vis">
+    <div class="upgrade-box old">
+      <div class="ub-day">DAYS 1–9</div>
+      <div class="ub-title">Rule-Based Orchestrator</div>
+      <div class="ub-desc">if/else hardcoded routing</div>
+    </div>
+    <div class="upgrade-arrow">→</div>
+    <div class="upgrade-box new">
+      <div class="ub-day">DAY 10</div>
+      <div class="ub-title">LLM-Driven Orchestrator</div>
+      <div class="ub-desc">LLM reasons + picks tools autonomously</div>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+
+  <div class="goal-card">
+    <h3>🎯 BY END OF TODAY</h3>
+    <ul class="goal-list">
+      <li>Understand LLM-driven tool calling — the Orchestrator decides which tools to call</li>
+      <li>Understand how to define tools that the LLM can autonomously choose</li>
+      <li>Understand memory patterns — episodic, semantic, and procedural</li>
+      <li>Upgrade the Orchestrator from rule-based routing to LLM-driven reasoning</li>
+      <li>See the difference between a scripted system and a truly intelligent one</li>
+    </ul>
+  </div>
+
+  <!-- CONCEPTS -->
+  <div class="section" id="concepts">
+    <div class="section-label">
+      <span class="tag">CONCEPTS</span>
+      <h2>Core Ideas — Day 10</h2>
+    </div>
+
+    <!-- C01 -->
+    <div class="concept open">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C01</span>
+        <h3>Rule-Based vs LLM-Driven Orchestration</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — TWO TYPES OF CUSTOMER SERVICE MANAGERS</strong>
+          <strong>Manager A (Rule-Based):</strong> Has a flowchart on their desk. Customer says "quick price check" → follows arrow to Box 2. Customer says something unexpected → manager is lost, no arrow for this.<br/><br/>
+          <strong>Manager B (LLM-Driven):</strong> No flowchart needed. Actually READS and UNDERSTANDS the request. "Is AAPL too risky for a conservative investor?" → thinks: "This needs risk data and sentiment but not full technical analysis." Adapts dynamically to what's actually being asked.
+        </div>
+
+        <p><strong>The key difference:</strong> rule-based systems are brittle — they only handle cases you explicitly programmed. LLM-driven orchestration generalizes to cases you never anticipated.</p>
+
+        <div class="compare-grid">
+          <div class="cmp-card rule">
+            <h4>📋 Rule-Based (Day 5)</h4>
+            <ul>
+              <li>if query_type == "quick" → price_agent</li>
+              <li>if query_type == "full" → all agents</li>
+              <li>YOU decided the logic, hardcoded in Python</li>
+              <li>Breaks on unexpected queries</li>
+              <li>Fast, predictable, no LLM cost</li>
+            </ul>
+          </div>
+          <div class="cmp-card llm">
+            <h4>🤖 LLM-Driven (Day 10)</h4>
+            <ul>
+              <li>LLM reads the user's actual query</li>
+              <li>LLM decides which agents/tools to call</li>
+              <li>The LLM decides the logic at runtime</li>
+              <li>Handles any query you never programmed</li>
+              <li>Slower, costs tokens, but truly intelligent</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- C02 -->
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C02</span>
+        <h3>How LLM Tool Calling Actually Works</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — NEW INTERN WITH A COMPANY DIRECTORY</strong>
+          Manager (LLM) receives: "Find out if Apple's earnings are better than Samsung's and prepare a risk comparison." Manager sees available tools: get_stock_price, get_news, calculate_risk, get_earnings_report. Manager decides: I need calculate_risk and get_earnings_report for both, but NOT get_stock_price (question isn't about today's price). Calls tools in the right order with the right arguments.
+        </div>
+
+        <p><strong>When you define a tool for an LLM, you give it three things:</strong></p>
+
+        <div class="tool-card">
+          <div class="tool-card-title">THE 3 PARTS EVERY TOOL NEEDS</div>
+          <div class="tool-parts">
+            <div class="tool-part">
+              <div class="tp-num">1</div>
+              <div class="tp-label">NAME</div>
+              <div class="tp-desc">What the LLM calls it by. Should be a clear, descriptive verb-noun: <code>get_stock_price</code>, <code>calculate_risk</code></div>
+            </div>
+            <div class="tool-part">
+              <div class="tp-num">2</div>
+              <div class="tp-label">DESCRIPTION</div>
+              <div class="tp-desc"><strong>Most critical.</strong> How the LLM knows WHEN to use it. Must say both when TO use it AND when NOT to.</div>
+            </div>
+            <div class="tool-part">
+              <div class="tp-num">3</div>
+              <div class="tp-label">PARAMETERS</div>
+              <div class="tp-desc">What arguments the LLM must provide. Type hints are essential — the LLM uses them to know what format to send.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">tool_flow.txt</span><span class="lang">text</span></div>
+          <pre>LLM receives:
+  - User query: "Is AAPL too volatile for retirement portfolios?"
+  - List of available tools with names + descriptions
+  - Previous conversation context
+
+LLM response is ONE of two things:
+  Option A — Tool call: "I want to call calculate_risk(ticker='AAPL')"
+  Option B — Final answer: "Based on the data, here is my analysis..."
+
+The system:
+  If LLM chose Option A → execute the tool, give result back to LLM
+  If LLM chose Option B → return to user, done
+
+This loop = the ReAct pattern from Day 1, now properly implemented.</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- C03 -->
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C03</span>
+        <h3>The ReAct Loop — Thought → Action → Observation</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <p>The LLM orchestrator runs a loop that continues until the LLM decides it has enough information to give a final answer.</p>
+
+        <div class="react-loop">
+          <div class="react-loop-title">REACT LOOP — "COMPARE APPLE VS TESLA RISK AND SENTIMENT"</div>
+          <div class="react-step">
+            <span class="react-step-num">T1</span>
+            <span class="react-step-text"><strong>Thought:</strong> I need risk data for both AAPL and TSLA. Let me call calculate_risk twice.</span>
+          </div>
+          <div class="react-connector">↓</div>
+          <div class="react-step">
+            <span class="react-step-num">A1</span>
+            <span class="react-step-text"><strong>Action:</strong> LLM calls <code>calculate_risk(ticker='AAPL')</code> AND <code>calculate_risk(ticker='TSLA')</code></span>
+          </div>
+          <div class="react-connector">↓</div>
+          <div class="react-step">
+            <span class="react-step-num">O1</span>
+            <span class="react-step-text"><strong>Observation:</strong> AAPL → volatility 22.4%, MEDIUM. TSLA → volatility 58.7%, HIGH.</span>
+          </div>
+          <div class="react-connector">↓</div>
+          <div class="react-step">
+            <span class="react-step-num">T2</span>
+            <span class="react-step-text"><strong>Thought:</strong> Now I need sentiment for both to complete the comparison.</span>
+          </div>
+          <div class="react-connector">↓</div>
+          <div class="react-step">
+            <span class="react-step-num">A2</span>
+            <span class="react-step-text"><strong>Action:</strong> Calls <code>get_stock_news('AAPL')</code> AND <code>get_stock_news('TSLA')</code></span>
+          </div>
+          <div class="react-connector">↓</div>
+          <div class="react-step">
+            <span class="react-step-num">O2</span>
+            <span class="react-step-text"><strong>Observation:</strong> AAPL sentiment 0.68 (positive). TSLA sentiment 0.31 (neutral).</span>
+          </div>
+          <div class="react-connector">↓</div>
+          <div class="react-step">
+            <span class="react-step-num">✅</span>
+            <span class="react-step-text"><strong>Final Answer:</strong> LLM synthesizes all 4 tool results into a coherent comparison paragraph.</span>
+          </div>
+        </div>
+
+        <div class="callout info">
+          <strong>THE KEY INSIGHT</strong>
+          We never programmed "compare two stocks". The LLM figured out on its own that it needed 4 tool calls (2 risk + 2 news) across 2 iterations. That query had zero hardcoded logic. <strong>That's the power of LLM-driven orchestration.</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- C04 -->
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C04</span>
+        <h3>Memory Patterns — Episodic, Semantic, Procedural</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — HOW A DOCTOR REMEMBERS THINGS</strong>
+          A doctor uses three types of memory when treating patients — and your agent system maps exactly to the same three types.
+        </div>
+
+        <div class="memory-grid">
+          <div class="mem-card">
+            <div class="mc-icon">📅</div>
+            <h4>Episodic Memory</h4>
+            <div class="mc-desc">Specific past events, timestamped, tied to a session. "Mrs. Sharma came in last Tuesday with fever 102°F."</div>
+            <div class="mc-example">conversation:{session_id} in Redis<br/>expires after 1hr inactivity</div>
+          </div>
+          <div class="mem-card">
+            <div class="mc-icon">📚</div>
+            <h4>Semantic Memory</h4>
+            <div class="mc-desc">General reusable knowledge that applies across sessions. "ACE inhibitors interact poorly with potassium."</div>
+            <div class="mc-example">cache:beta:TSLA in Redis<br/>expires after 24 hours</div>
+          </div>
+          <div class="mem-card">
+            <div class="mc-icon">⚙️</div>
+            <h4>Procedural Memory</h4>
+            <div class="mc-desc">Stored routines — how to do things. "The procedure for taking blood pressure is..."</div>
+            <div class="mc-example">The LangGraph graph itself<br/>lives in graph.py, not Redis</div>
+          </div>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">memory_mapping.py</span><span class="lang">python</span></div>
+          <pre><span class="cm"># Episodic Memory → conversation history (Day 7)</span>
+redis.<span class="cf">set</span>(<span class="cs">f"conversation:{session_id}"</span>, json.<span class="cf">dumps</span>(turns), <span class="cp">ex</span>=<span class="cn">3600</span>)
+<span class="cm"># Specific events from this session, expires when session ends</span>
+
+<span class="cm"># Semantic Memory → cached computed facts</span>
+redis.<span class="cf">set</span>(<span class="cs">f"facts:beta:{ticker}"</span>, json.<span class="cf">dumps</span>({<span class="cs">"beta"</span>: <span class="cn">1.47</span>}), <span class="cp">ex</span>=<span class="cn">86400</span>)
+<span class="cm"># TSLA's beta doesn't change by the hour — cache for 24 hours</span>
+
+<span class="cm"># Procedural Memory → the LangGraph graph structure itself</span>
+<span class="cm"># Lives in graph.py — it IS the procedure for analyzing a stock</span>
+<span class="cm"># No Redis needed — it's already in process memory</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CODE -->
+  <div class="section" id="code">
+    <div class="section-label">
+      <span class="tag">CODE</span>
+      <h2>Build the LLM-Driven Orchestrator</h2>
+    </div>
+
+    <div class="tabs">
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab(this,'t-tools')">tools.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-orch')">llm_orchestrator.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-api')">api/main.py (updated)</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-run')">run_day10.py</button>
+      </div>
+
+      <div id="t-tools" class="tab-content active">
+        <div class="callout info">
+          <strong>WHY DESCRIPTIONS ARE EVERYTHING</strong>
+          The description is literally how the LLM decides whether to call a tool — it reads it like a human reads a menu. Always state what to use it FOR and what NOT to use it for. Vague descriptions = wrong tool calls.
+        </div>
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">agents/tools.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> langchain_core.tools <span class="ck">import</span> tool
+<span class="cm"># @tool decorator converts a regular Python function into a LangChain Tool</span>
+<span class="cm"># that the LLM can call — name, description, and params are auto-extracted</span>
+
+@<span class="cf">tool</span>
+<span class="ck">def</span> <span class="cf">get_stock_price</span>(ticker: str) -> str:
+    <span class="cs">"""
+    Fetches current stock price, daily change percentage, and RSI
+    for the given ticker symbol from Yahoo Finance.
+
+    Use this tool when the user asks about:
+    - Current stock price or today's movement
+    - RSI or momentum indicators
+    - Whether a stock is overbought or oversold
+
+    Do NOT use this for: news sentiment, volatility, or risk scoring.
+    """</span>
+    <span class="ck">from</span> agents.price_agent <span class="ck">import</span> _fetch_price_sync
+    <span class="ck">from</span> memory.cache <span class="ck">import</span> get_cached, set_cached
+
+    cached = <span class="cf">get_cached</span>(<span class="cs">"price"</span>, ticker)
+    <span class="ck">if</span> cached: <span class="ck">return</span> <span class="cf">str</span>(cached)
+    result = <span class="cf">_fetch_price_sync</span>(ticker)
+    <span class="cf">set_cached</span>(<span class="cs">"price"</span>, ticker, result)
+    <span class="ck">return</span> <span class="cf">str</span>(result)
+
+
+@<span class="cf">tool</span>
+<span class="ck">def</span> <span class="cf">get_stock_news</span>(ticker: str) -> str:
+    <span class="cs">"""
+    Fetches recent news headlines and sentiment score for a stock.
+
+    Use this tool when the user asks about:
+    - Recent news about a company
+    - Market sentiment or analyst opinions
+    - Whether the news is positive or negative for a stock
+
+    Do NOT use this for: price data, technical indicators, or risk metrics.
+    """</span>
+    <span class="ck">from</span> tavily <span class="ck">import</span> TavilyClient
+    <span class="ck">from</span> core.config <span class="ck">import</span> config
+
+    tavily = <span class="cf">TavilyClient</span>(<span class="cp">api_key</span>=config.TAVILY_API_KEY)
+    results = tavily.<span class="cf">search</span>(<span class="cp">query</span>=<span class="cs">f"{ticker} stock news today"</span>, <span class="cp">max_results</span>=<span class="cn">5</span>)
+    articles = results.<span class="cf">get</span>(<span class="cs">"results"</span>, [])
+    headlines = [a.<span class="cf">get</span>(<span class="cs">"title"</span>,<span class="cs">""</span>) <span class="ck">for</span> a <span class="ck">in</span> articles <span class="ck">if</span> a.<span class="cf">get</span>(<span class="cs">"title"</span>)]
+    <span class="ck">return</span> <span class="cf">str</span>({<span class="cs">"headlines"</span>: headlines[:<span class="cn">3</span>], <span class="cs">"sentiment_score"</span>: <span class="cn">0.0</span>})
+
+
+@<span class="cf">tool</span>
+<span class="ck">def</span> <span class="cf">calculate_risk</span>(ticker: str) -> str:
+    <span class="cs">"""
+    Calculates volatility, maximum drawdown, beta, and overall risk level
+    for a given stock over the past 6 months.
+
+    Use this tool when the user asks about:
+    - How risky a stock is
+    - Whether a stock is suitable for conservative/aggressive investors
+    - Beta or market sensitivity
+
+    Do NOT use this for: current price, news, or recommendations.
+    """</span>
+    <span class="ck">from</span> agents.risk_agent <span class="ck">import</span> _calculate_risk_sync
+    <span class="ck">from</span> memory.cache <span class="ck">import</span> get_cached, set_cached
+
+    cached = <span class="cf">get_cached</span>(<span class="cs">"risk"</span>, ticker)
+    <span class="ck">if</span> cached: <span class="ck">return</span> <span class="cf">str</span>(cached)
+    result = <span class="cf">_calculate_risk_sync</span>(ticker)
+    <span class="cf">set_cached</span>(<span class="cs">"risk"</span>, ticker, result)
+    <span class="ck">return</span> <span class="cf">str</span>(result)
+
+
+@<span class="cf">tool</span>
+<span class="ck">def</span> <span class="cf">get_full_analysis</span>(ticker: str) -> str:
+    <span class="cs">"""
+    Runs a COMPLETE multi-agent analysis including price, news sentiment,
+    risk metrics, and a BUY/HOLD/SELL recommendation.
+
+    Use this tool when the user asks for:
+    - A complete or full analysis
+    - A recommendation on whether to buy, hold, or sell
+    - A comprehensive overview of a stock
+
+    This is the most expensive tool — only use when explicitly requested.
+    """</span>
+    <span class="ck">import</span> json
+    <span class="ck">from</span> agents.graph <span class="ck">import</span> build_graph
+    graph = <span class="cf">build_graph</span>()
+    state = {
+        <span class="cs">"ticker"</span>: ticker, <span class="cs">"query_type"</span>: <span class="cs">"full"</span>,
+        <span class="cm"># ... rest of None fields ...</span>
+        <span class="cs">"errors"</span>: [], <span class="cs">"retry_count"</span>: <span class="cn">0</span>
+    }
+    final_state = graph.<span class="cf">invoke</span>(state)
+    report = json.<span class="cf">loads</span>(final_state.<span class="cf">get</span>(<span class="cs">"final_report"</span>, <span class="cs">"{}"</span>))
+    <span class="ck">return</span> <span class="cf">str</span>(report.<span class="cf">get</span>(<span class="cs">"verdict"</span>, {}))</pre>
+        </div>
+      </div>
+
+      <div id="t-orch" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">agents/llm_orchestrator.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> langchain_groq <span class="ck">import</span> ChatGroq
+<span class="ck">from</span> langchain_core.messages <span class="ck">import</span> HumanMessage, SystemMessage, AIMessage, ToolMessage
+<span class="cm"># Message types represent the conversation history the LLM sees
+# HumanMessage = what user said
+# AIMessage    = what LLM responded (may include tool call request)
+# ToolMessage  = result of a tool execution</span>
+
+<span class="ck">from</span> core.config <span class="ck">import</span> config
+<span class="ck">from</span> agents.tools <span class="ck">import</span> get_stock_price, get_stock_news, calculate_risk, get_full_analysis
+
+llm = <span class="cf">ChatGroq</span>(<span class="cp">api_key</span>=config.GROQ_API_KEY, <span class="cp">model_name</span>=config.MODEL_NAME)
+
+<span class="cm"># .bind_tools() tells the LLM "these are the tools available to you"</span>
+<span class="cm"># LLM sees each tool's name + description and can pick autonomously</span>
+llm_with_tools = llm.<span class="cf">bind_tools</span>([
+    get_stock_price, get_stock_news, calculate_risk, get_full_analysis
+])
+
+
+<span class="ck">def</span> <span class="cf">run_llm_orchestrator</span>(user_query: str, session_id: str = <span class="cs">"default"</span>) -> str:
+    <span class="cs">"""
+    LLM-driven orchestrator — the LLM decides which tools to call.
+    No hardcoded if/else routing. The LLM reads the query and reasons.
+    """</span>
+    <span class="cf">print</span>(<span class="cs">f"\n🤖 LLM Orchestrator: '{user_query}'"</span>)
+
+    system_prompt = <span class="cs">"""You are an intelligent stock market analysis assistant.
+You have tools for price data, news sentiment, risk metrics, and full analysis.
+
+Rules:
+1. Understand what the user is asking
+2. Choose the MINIMUM set of tools needed for their specific question
+3. Extract ticker symbols from company names (Apple=AAPL, Tesla=TSLA, Google=GOOGL)
+4. Synthesize tool results into a clear, helpful answer"""</span>
+
+    messages = [
+        <span class="cf">SystemMessage</span>(<span class="cp">content</span>=system_prompt),
+        <span class="cf">HumanMessage</span>(<span class="cp">content</span>=user_query)
+    ]
+
+    <span class="cm"># ── ReAct Loop ────────────────────────────────────────</span>
+    max_iterations = <span class="cn">5</span>  <span class="cm"># safety limit — prevents infinite loops</span>
+
+    <span class="ck">for</span> iteration <span class="ck">in</span> <span class="cf">range</span>(max_iterations):
+        <span class="cf">print</span>(<span class="cs">f"\n🔄 Iteration {iteration + 1}"</span>)
+
+        response = llm_with_tools.<span class="cf">invoke</span>(messages)
+        messages.<span class="cf">append</span>(response)
+        <span class="cm"># Add LLM's response to history so next iteration has full context</span>
+
+        <span class="ck">if not</span> response.tool_calls:
+            <span class="cm"># No tool calls = LLM decided it has enough info</span>
+            <span class="cf">print</span>(<span class="cs">f"✅ Final answer ready"</span>)
+            <span class="ck">return</span> response.content
+
+        <span class="cm"># LLM wants to call one or more tools</span>
+        <span class="ck">for</span> tool_call <span class="ck">in</span> response.tool_calls:
+            tool_name     = tool_call[<span class="cs">"name"</span>]
+            tool_args     = tool_call[<span class="cs">"args"</span>]
+            tool_call_id  = tool_call[<span class="cs">"id"</span>]
+            <span class="cm"># tool_call_id links this request to its result in the conversation</span>
+
+            <span class="cf">print</span>(<span class="cs">f"🔧 LLM calling: {tool_name}({tool_args})"</span>)
+
+            tool_map = {
+                <span class="cs">"get_stock_price"</span>:  get_stock_price,
+                <span class="cs">"get_stock_news"</span>:   get_stock_news,
+                <span class="cs">"calculate_risk"</span>:   calculate_risk,
+                <span class="cs">"get_full_analysis"</span>: get_full_analysis
+            }
+
+            tool_fn = tool_map.<span class="cf">get</span>(tool_name)
+            <span class="ck">try</span>:
+                tool_result = tool_fn.<span class="cf">invoke</span>(tool_args) <span class="ck">if</span> tool_fn <span class="ck">else</span> <span class="cs">f"Unknown: {tool_name}"</span>
+                <span class="cf">print</span>(<span class="cs">f"📊 Result: {str(tool_result)[:100]}..."</span>)
+            <span class="ck">except</span> Exception <span class="ck">as</span> e:
+                tool_result = <span class="cs">f"Tool failed: {str(e)}"</span>
+
+            <span class="cm"># Return result to LLM — ToolMessage links to the tool_call_id</span>
+            messages.<span class="cf">append</span>(<span class="cf">ToolMessage</span>(
+                <span class="cp">content</span>=<span class="cf">str</span>(tool_result),
+                <span class="cp">tool_call_id</span>=tool_call_id
+            ))
+
+    <span class="ck">return</span> <span class="cs">"Analysis incomplete — maximum iterations reached."</span></pre>
+        </div>
+      </div>
+
+      <div id="t-api" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">api/main.py — add /chat endpoint</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> agents.llm_orchestrator <span class="ck">import</span> run_llm_orchestrator
+
+<span class="ck">class</span> <span class="cf">ChatRequest</span>(BaseModel):
+    query: str = <span class="cf">Field</span>(
+        ...,
+        <span class="cp">description</span>=<span class="cs">"Natural language query about any stock"</span>,
+        <span class="cp">examples</span>=[<span class="cs">"Is Apple stock too risky for retirement portfolios?"</span>]
+    )
+    session_id: str = <span class="cf">Field</span>(<span class="cp">default</span>=<span class="cs">"anonymous"</span>)
+
+<span class="ck">class</span> <span class="cf">ChatResponse</span>(BaseModel):
+    query:      str
+    response:   str
+    session_id: str
+
+@app.<span class="cf">post</span>(<span class="cs">"/chat"</span>, <span class="cp">response_model</span>=ChatResponse, <span class="cp">tags</span>=[<span class="cs">"Chat"</span>])
+<span class="ck">def</span> <span class="cf">chat</span>(request: ChatRequest):
+    <span class="cs">"""
+    Natural language interface — ask anything about any stock.
+    The LLM decides which tools to call based on your question.
+
+    Examples:
+    - "What is Tesla's current price?"
+    - "Is Apple too volatile for conservative investors?"
+    - "Give me a full analysis of Microsoft"
+    - "Compare the risk and sentiment of Apple vs Tesla"
+    """</span>
+    response = <span class="cf">run_llm_orchestrator</span>(request.query, request.session_id)
+    <span class="ck">return</span> <span class="cf">ChatResponse</span>(<span class="cp">query</span>=request.query, <span class="cp">response</span>=response, <span class="cp">session_id</span>=request.session_id)</pre>
+        </div>
+
+        <div style="margin-top: 16px;">
+          <p style="font-size:13px;color:var(--muted);">Now your API has two distinct endpoints for different use cases:</p>
+          <div class="endpoint-diff">
+            <div class="ep-card analyze">
+              <h4>POST /analyze</h4>
+              <ul>
+                <li>→ Structured — always runs full pipeline</li>
+                <li>→ Returns defined JSON schema</li>
+                <li>→ For programmatic / frontend consumption</li>
+                <li>→ Fast, predictable, same output shape</li>
+              </ul>
+            </div>
+            <div class="ep-card chat">
+              <h4>POST /chat</h4>
+              <ul>
+                <li>→ Conversational — any natural language query</li>
+                <li>→ LLM picks tools + returns natural language</li>
+                <li>→ For human users having a conversation</li>
+                <li>→ Flexible, generalizes to any question</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-run" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">run_day10.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">from</span> agents.llm_orchestrator <span class="ck">import</span> run_llm_orchestrator
+
+test_queries = [
+    <span class="cm"># Should only call get_stock_price</span>
+    <span class="cs">"What is Apple's current stock price and RSI?"</span>,
+
+    <span class="cm"># Should only call calculate_risk</span>
+    <span class="cs">"Is Tesla too risky for a conservative retirement portfolio?"</span>,
+
+    <span class="cm"># Should only call get_stock_news</span>
+    <span class="cs">"What's the latest news sentiment on NVIDIA?"</span>,
+
+    <span class="cm"># Should call get_full_analysis</span>
+    <span class="cs">"Give me a complete analysis of Microsoft with a recommendation"</span>,
+
+    <span class="cm"># Tricky — LLM needs to figure out which tools to combine across 2 tickers</span>
+    <span class="cs">"Compare the risk and sentiment of Apple vs Tesla"</span>,
+]
+
+<span class="ck">def</span> <span class="cf">main</span>():
+    <span class="ck">for</span> query <span class="ck">in</span> test_queries:
+        <span class="cf">print</span>(<span class="cs">f"\n{'='*60}"</span>)
+        <span class="cf">print</span>(<span class="cs">f"❓ {query}"</span>)
+        <span class="cf">print</span>(<span class="cs">'='*60</span>)
+        result = <span class="cf">run_llm_orchestrator</span>(query)
+        <span class="cf">print</span>(<span class="cs">f"\n💬 Answer:\n{result}"</span>)
+
+<span class="ck">if</span> __name__ == <span class="cs">"__main__"</span>:
+    <span class="cf">main</span>()</pre>
+        </div>
+
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="terminal-dot red"></div>
+            <div class="terminal-dot yellow"></div>
+            <div class="terminal-dot green"></div>
+          </div>
+          <pre><span style="color:#fde68a">❓ Compare the risk and sentiment of Apple vs Tesla</span>
+
+🤖 LLM Orchestrator: 'Compare the risk and sentiment of Apple vs Tesla'
+
+🔄 Iteration 1
+🔧 LLM calling: calculate_risk({'ticker': 'AAPL'})
+📊 Result: {'volatility': 22.4, 'risk_level': 'MEDIUM'}...
+🔧 LLM calling: calculate_risk({'ticker': 'TSLA'})
+📊 Result: {'volatility': 58.7, 'risk_level': 'HIGH'}...
+
+🔄 Iteration 2
+🔧 LLM calling: get_stock_news({'ticker': 'AAPL'})
+📊 Result: {'headlines': [...], 'sentiment_score': 0.68}...
+🔧 LLM calling: get_stock_news({'ticker': 'TSLA'})
+📊 Result: {'headlines': [...], 'sentiment_score': 0.31}...
+
+🔄 Iteration 3
+✅ Final answer ready
+
+💬 Answer:
+Apple (AAPL) presents a MEDIUM risk profile with 22.4% annual
+volatility and positive sentiment (0.68), making it more suitable
+for conservative investors. Tesla (TSLA), by contrast, carries HIGH
+risk with 58.7% volatility and more neutral sentiment (0.31),
+better suited to aggressive investors who can tolerate larger swings.
+
+<span style="color:var(--green)">→ We never programmed "compare two stocks". The LLM made 4 tool
+  calls across 2 iterations autonomously. Zero hardcoded logic.</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERVIEW QA -->
+  <div class="section" id="interview">
+    <div class="section-label">
+      <span class="tag">INTERVIEW</span>
+      <h2>Q&A — Day 10</h2>
+    </div>
+    <div class="qa-list">
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">What's the fundamental difference between your rule-based orchestrator (Day 5) and the LLM-driven one (Day 10)?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">The rule-based orchestrator uses hardcoded Python if/else logic — if query_type is "quick" go here, if "full" go there. It only handles cases I explicitly programmed. The LLM-driven orchestrator gives the LLM a menu of tools with descriptions and lets it autonomously reason about which ones to call for any query. It generalizes to queries I never anticipated — like comparing two stocks or answering a nuanced risk question — without any new code.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">What makes a good tool description and why does it matter so much?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">The description is literally how the LLM decides whether to call a tool — it reads the description the same way a human reads a menu. A vague description like "gets stock data" causes the LLM to call the wrong tool. A precise description that says exactly when TO use it and when NOT to use it ("use for price/RSI questions, NOT for news or risk") lets the LLM make correct decisions reliably. The description is the tool's "interface contract" with the LLM.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">Explain the ReAct loop that happens inside your LLM orchestrator.</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">The orchestrator runs a loop: first it sends the user's query to the LLM with the list of available tools. The LLM either returns a tool call request or a final text answer. If it's a tool call, we execute the tool, add the result back to the conversation history as a ToolMessage, and send everything back to the LLM for the next iteration. The LLM continues calling tools until it decides it has enough information, then produces a final answer. This is Thought → Action → Observation repeated until the LLM decides it's done.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">What are the three memory pattern types and how do they map to your system?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Episodic memory stores specific past events tied to a session — in my system that's conversation history stored in Redis with a session_id key, expiring after inactivity. Semantic memory stores general reusable facts — my cache layer storing computed beta values or risk scores for 24 hours since they don't change rapidly. Procedural memory encodes how to do things — my LangGraph graph structure itself is procedural memory, defining the procedure for conducting a stock analysis.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">What's the risk of allowing the LLM to call tools autonomously and how would you mitigate it?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">The main risks are: the LLM calling expensive tools unnecessarily — mitigated by the max_iterations limit and precise tool descriptions that guide appropriate selection. The LLM could also extract the wrong ticker from an ambiguous query — mitigated by validation in each tool function. In production I'd add tool call logging for auditing, cost tracking per session to prevent abuse, and a human-in-the-loop confirmation for high-stakes decisions like trade execution.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">How does your /chat endpoint differ from /analyze and when would each be used?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">The /analyze endpoint is structured — it always runs the full pipeline for a specific ticker and returns a defined JSON schema. It's designed for programmatic consumption by a frontend or downstream system that needs specific fields. The /chat endpoint is conversational — it accepts any natural language query, lets the LLM decide what data to fetch, and returns a natural language answer. /analyze is for systems consuming structured data; /chat is for human users having a conversation.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTube -->
+  <div class="section">
+    <div class="section-label">
+      <span class="tag">REFERENCES</span>
+      <h2>YouTube Resources</h2>
+    </div>
+    <div class="yt-links">
+      <a class="yt-link" href="https://www.youtube.com/watch?v=2K8bxcvSFZE" target="_blank"><span class="yt-icon">▶</span> LangChain Tool Calling</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=DV3OhMCeEw4" target="_blank"><span class="yt-icon">▶</span> ReAct Pattern Explained</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=Sc5MiPD5VpY" target="_blank"><span class="yt-icon">▶</span> Agent Memory Patterns</a>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div class="section">
+    <div class="checklist">
+      <h3>✅ DAY 10 CHECKLIST</h3>
+      <div class="check-grid">
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood rule-based vs LLM-driven orchestration</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood how LLM tool calling works — name, description, params</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood why description quality is critical</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood the ReAct loop in the LLM orchestrator</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood 3 memory patterns — episodic, semantic, procedural</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>agents/tools.py created — 4 tools with clear descriptions</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>agents/llm_orchestrator.py created — ReAct loop</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>api/main.py updated — /chat endpoint added</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>run_day10.py executed — saw LLM autonomously selecting tools</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Tested comparison query — saw 4 tool calls made unprompted</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood /chat vs /analyze serve different purposes</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Can explain all 6 interview questions confidently</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleConcept(head) { head.parentElement.classList.toggle('open'); }
+  function toggleQA(item) { item.classList.toggle('open'); }
+  function switchTab(btn, targetId) {
+    const nav  = btn.closest('.tab-nav');
+    const tabs = btn.closest('.tabs');
+    nav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tabs.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(targetId).classList.add('active');
+  }
+  function toggleCheck(item) {
+    item.classList.toggle('checked');
+    item.querySelector('.check-box').textContent = item.classList.contains('checked') ? '✓' : '';
+  }
+</script>
+</body>
+</html>

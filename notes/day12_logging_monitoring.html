@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stock Analysis Agent — Day 12</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f14; --surface: #13161d; --card: #1a1e29; --border: #252a38;
+    --day12: #e879f9; --day12-dim: rgba(232,121,249,0.12); --day12-glow: rgba(232,121,249,0.22);
+    --green: #00e5a0; --yellow: #ffd166; --cyan: #00c2ff; --orange: #ff6b35; --red: #ff4d6a;
+    --text: #e8eaf2; --muted: #7a8099; --faint: #3a3f55;
+    --mono: 'JetBrains Mono', monospace; --sans: 'Inter', sans-serif; --display: 'Syne', sans-serif;
+    --radius: 10px; --radius-lg: 16px;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  nav { position: sticky; top: 0; z-index: 100; background: rgba(13,15,20,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; height: 56px; }
+  .nav-brand { font-family: var(--display); font-size: 16px; letter-spacing: 0.04em; color: var(--text); margin-right: auto; display: flex; align-items: center; gap: 8px; }
+  .nav-brand span { color: var(--day12); }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links a { text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 6px; transition: background 0.2s, color 0.2s; color: var(--muted); }
+  .nav-links a:hover { background: var(--card); color: var(--text); }
+  .nav-links a.d12 { color: var(--day12); }
+
+  .hero { padding: 72px 32px 56px; max-width: 900px; margin: 0 auto; text-align: center; }
+  .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--muted); background: var(--card); border: 1px solid var(--border); border-radius: 99px; padding: 5px 14px; margin-bottom: 28px; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--day12); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .hero h1 { font-family: var(--display); font-size: clamp(30px,5vw,50px); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; color: var(--text); margin-bottom: 20px; }
+  .hero h1 .accent { color: var(--day12); }
+  .hero-sub { font-size: 16px; color: var(--muted); max-width: 580px; margin: 0 auto 44px; }
+
+  /* print vs log vis */
+  .hero-compare { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 32px; }
+  .hc-box { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 22px; min-width: 200px; text-align: left; }
+  .hc-box .hc-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 8px; }
+  .hc-box .hc-code { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .hc-box.bad { border-color: rgba(255,77,106,0.3); }
+  .hc-box.bad .hc-label { color: var(--red); }
+  .hc-box.good { border-color: rgba(232,121,249,0.3); box-shadow: 0 0 18px var(--day12-glow); }
+  .hc-box.good .hc-label { color: var(--day12); }
+  .hc-box.good .hc-code { color: var(--green); }
+  .hc-arrow { font-size: 24px; color: var(--faint); align-self: center; }
+
+  .container { max-width: 940px; margin: 0 auto; padding: 0 32px 80px; }
+  .section { margin-bottom: 40px; }
+  .section-label { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-label .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 4px; }
+  .section-label h2 { font-family: var(--display); font-size: 19px; font-weight: 700; }
+
+  .goal-card { background: var(--card); border: 1px solid rgba(232,121,249,0.3); border-radius: var(--radius-lg); padding: 24px 28px; margin-bottom: 36px; box-shadow: 0 0 30px var(--day12-glow); }
+  .goal-card h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; color: var(--day12); margin-bottom: 14px; }
+  .goal-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .goal-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+  .goal-list li::before { content: '→'; font-family: var(--mono); font-size: 13px; color: var(--day12); flex-shrink: 0; margin-top: 2px; }
+
+  .concept { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 16px; }
+  .concept-head { display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; transition: background 0.2s; }
+  .concept-head:hover { background: rgba(255,255,255,0.02); }
+  .concept-num { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; flex-shrink: 0; background: var(--day12-dim); color: var(--day12); }
+  .concept-head h3 { font-size: 16px; font-weight: 600; flex: 1; }
+  .chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; }
+  .concept.open .chevron { transform: rotate(180deg); }
+  .concept-body { display: none; padding: 20px 24px 24px; }
+  .concept.open .concept-body { display: block; }
+
+  .analogy { background: var(--surface); border-left: 3px solid var(--yellow); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin: 16px 0; font-size: 14px; }
+  .analogy strong.label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--yellow); margin-bottom: 10px; }
+
+  .code-wrap { background: #0a0c11; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 14px 0; }
+  .code-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .code-bar .filename { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .code-bar .lang { font-family: var(--mono); font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.1em; }
+  pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.65; padding: 18px 20px; overflow-x: auto; color: #c9d1e8; tab-size: 4; white-space: pre; }
+  .cm { color: #5c6680; } .ck { color: var(--day12); } .cs { color: #86e1a0; } .cn { color: var(--yellow); } .cf { color: var(--cyan); } .cp { color: var(--orange); }
+
+  /* log level table */
+  .level-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .level-table th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-align: left; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .level-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .level-table tr:last-child td { border-bottom: none; }
+  .lvl-badge { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; display: inline-block; white-space: nowrap; }
+  .lvl-badge.debug    { background: rgba(122,128,153,0.15); color: var(--muted); }
+  .lvl-badge.info     { background: rgba(0,194,255,0.15); color: var(--cyan); }
+  .lvl-badge.warning  { background: rgba(255,209,102,0.15); color: var(--yellow); }
+  .lvl-badge.error    { background: rgba(255,107,53,0.15); color: var(--orange); }
+  .lvl-badge.critical { background: rgba(255,77,106,0.15); color: var(--red); }
+
+  /* structured vs unstructured */
+  .log-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  @media(max-width:600px) { .log-compare { grid-template-columns: 1fr; } }
+  .lc-col { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .lc-col-head { padding: 10px 16px; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); }
+  .lc-col.unstruct .lc-col-head { color: var(--red); }
+  .lc-col.struct .lc-col-head { color: var(--green); border-color: rgba(0,229,160,0.2); }
+  .lc-col.struct { border-color: rgba(0,229,160,0.25); }
+  .lc-col pre { font-size: 11.5px; padding: 14px 16px; }
+
+  /* tracing flow */
+  .trace-flow { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin: 16px 0; }
+  .trace-title { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 16px; }
+  .trace-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 6px; }
+  .trace-agent { font-family: var(--mono); font-size: 11px; font-weight: 700; background: var(--day12-dim); color: var(--day12); padding: 3px 10px; border-radius: 4px; flex-shrink: 0; white-space: nowrap; }
+  .trace-log { font-family: var(--mono); font-size: 11.5px; color: #b0bbd4; flex: 1; }
+  .trace-log .req-id { color: var(--yellow); }
+  .trace-connector { margin-left: 16px; color: var(--faint); font-size: 11px; padding: 2px 0; }
+
+  /* tabs */
+  .tabs { margin-bottom: 28px; }
+  .tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 22px; overflow-x: auto; }
+  .tab-btn { font-family: var(--sans); font-size: 13px; font-weight: 500; padding: 10px 18px; background: none; border: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s; white-space: nowrap; margin-bottom: -1px; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--day12); border-bottom-color: var(--day12); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* terminal */
+  .terminal { background: #060708; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 16px 0; }
+  .terminal-bar { display: flex; gap: 6px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f57; } .terminal-dot.yellow { background: #febc2e; } .terminal-dot.green { background: #28c840; }
+  .terminal pre { color: #8fdb9a; font-size: 11.5px; padding: 16px 20px; line-height: 1.6; }
+
+  /* qa */
+  .qa-list { display: flex; flex-direction: column; gap: 10px; }
+  .qa-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .qa-q { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px; cursor: pointer; user-select: none; transition: background 0.2s; }
+  .qa-q:hover { background: rgba(255,255,255,0.02); }
+  .qa-num { font-family: var(--mono); font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 2px; padding: 2px 8px; border-radius: 4px; background: var(--day12-dim); color: var(--day12); }
+  .qa-qtext { font-size: 14px; font-weight: 500; flex: 1; }
+  .qa-chevron { font-size: 12px; color: var(--muted); transition: transform 0.3s; margin-left: auto; flex-shrink: 0; }
+  .qa-item.open .qa-chevron { transform: rotate(180deg); }
+  .qa-a { display: none; padding: 14px 20px 16px 52px; font-size: 14px; color: #b0bbd4; line-height: 1.7; border-top: 1px solid var(--border); }
+  .qa-item.open .qa-a { display: block; }
+
+  /* checklist */
+  .checklist { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+  .checklist h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 16px; }
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media(max-width:600px) { .check-grid { grid-template-columns: 1fr; } }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; padding: 6px 0; transition: color 0.2s; }
+  .check-item.checked { color: var(--text); }
+  .check-box { width: 16px; height: 16px; border: 1px solid var(--faint); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; transition: background 0.2s, border-color 0.2s; font-size: 10px; }
+  .check-item.checked .check-box { background: var(--day12); border-color: var(--day12); color: #000; }
+
+  .yt-links { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+  .yt-link { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; text-decoration: none; font-size: 13px; color: var(--text); transition: border-color 0.2s, background 0.2s; }
+  .yt-link:hover { border-color: var(--day12); background: var(--day12-dim); }
+  .yt-icon { color: var(--red); font-size: 15px; }
+
+  .callout { border-radius: var(--radius); padding: 16px 20px; margin: 14px 0; font-size: 14px; }
+  .callout.info { background: var(--day12-dim); border: 1px solid rgba(232,121,249,0.3); color: #f5d0fe; }
+  .callout.warn { background: rgba(255,209,102,0.1); border: 1px solid rgba(255,209,102,0.3); color: var(--yellow); }
+  .callout strong { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; display: block; margin-bottom: 6px; }
+
+  code { font-family: var(--mono); font-size: 12px; background: var(--surface); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; color: var(--day12); }
+  p { margin-bottom: 12px; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; font-size: 14px; }
+  strong { color: var(--text); font-weight: 600; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">⬡ <span>Stock</span>Agent</div>
+  <div class="nav-links">
+    <a href="#concepts" class="d12">Concepts</a>
+    <a href="#code" class="d12">Code</a>
+    <a href="#interview" class="d12">Interview</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">
+    <span class="dot"></span>
+    LangGraph Agent Series · Day 12
+  </div>
+  <h1>
+    <span class="accent">Logging</span>, Monitoring<br/>
+    &amp; Error Handling Patterns
+  </h1>
+  <p class="hero-sub">
+    Stop using print(). Build production-grade structured logging, request tracing,
+    and performance metrics so you can debug any failure in seconds.
+  </p>
+
+  <div class="hero-compare">
+    <div class="hc-box bad">
+      <div class="hc-label">❌ print() in production</div>
+      <div class="hc-code">✅ $189.3 | RSI: 58.4<br/>📰 Sentiment: 0.68<br/>→ no timestamp<br/>→ no request ID<br/>→ gone on restart</div>
+    </div>
+    <div class="hc-arrow">→</div>
+    <div class="hc-box good">
+      <div class="hc-label">✅ Structured logging</div>
+      <div class="hc-code">{"level":"INFO",<br/> "ticker":"AAPL",<br/> "rsi":58.4,<br/> "request_id":"a1b2",<br/> "duration_ms":342}</div>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+
+  <div class="goal-card">
+    <h3>🎯 BY END OF TODAY</h3>
+    <ul class="goal-list">
+      <li>Understand why print() is not enough in production</li>
+      <li>Understand structured logging and log levels</li>
+      <li>Understand how to track agent performance metrics</li>
+      <li>Build a proper logging system for your multi-agent pipeline</li>
+      <li>Implement request tracing so you can debug any failed analysis</li>
+    </ul>
+  </div>
+
+  <!-- CONCEPTS -->
+  <div class="section" id="concepts">
+    <div class="section-label">
+      <span class="tag">CONCEPTS</span>
+      <h2>Core Ideas — Day 12</h2>
+    </div>
+
+    <div class="concept open">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C01</span>
+        <h3>Why print() Fails in Production</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — HOSPITAL PATIENT MONITORING</strong>
+          <strong>Junior nurse (print()):</strong> "Patient's blood pressure is high" — no timestamp, no patient ID, no severity, disappears when shift ends.<br/><br/>
+          <strong>Senior hospital system (structured logging):</strong> <code>{"timestamp":"14:30Z","patient_id":"P-4521","event":"bp_reading","severity":"WARNING","value":"180/110","action":"notified_doctor"}</code> — timestamped, searchable, permanent, alertable.
+        </div>
+
+        <p><strong>The specific problems in your agent system:</strong></p>
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">problems_with_print.txt</span><span class="lang">text</span></div>
+          <pre>print(f"📈 Price Agent: Fetching data for {ticker}...")
+print(f"✅ ${current_price} | RSI: {rsi}")
+
+Problems in production:
+  1. No timestamp → WHEN did this analysis run?
+  2. No request ID → WHICH of 500 concurrent requests is this for?
+  3. No log level → Is this info, warning, or a critical error?
+  4. No structured format → Can't query "all analyses where RSI > 70"
+  5. No log file → If container restarts, logs are gone forever
+  6. 500 concurrent requests → logs from all interleaved, unreadable</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C02</span>
+        <h3>Log Levels — Traffic Light Severity</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — CITY TRAFFIC MANAGEMENT SYSTEM</strong>
+          DEBUG = "Car registered at intersection 5A at 14:30:01" (every tiny event)<br/>
+          INFO = "Traffic flow normal on Highway 1" (normal operations)<br/>
+          WARNING = "Unusual congestion building" (unexpected but not broken)<br/>
+          ERROR = "Traffic signal malfunction at Junction 12" (something broke)<br/>
+          CRITICAL = "Motorway blocked — major accident" (wake someone up NOW)
+        </div>
+
+        <table class="level-table">
+          <thead><tr><th>Level</th><th>When to use</th><th>In your agent system</th><th>Prod?</th></tr></thead>
+          <tbody>
+            <tr><td><span class="lvl-badge debug">DEBUG</span></td><td>Trace every step</td><td>"Checking cache for AAPL", "Sending prompt to LLM"</td><td>❌ Off</td></tr>
+            <tr><td><span class="lvl-badge info">INFO</span></td><td>Normal operations</td><td>"Price Agent completed for AAPL in 340ms"</td><td>⚠️ Selective</td></tr>
+            <tr><td><span class="lvl-badge warning">WARNING</span></td><td>Unexpected, not broken</td><td>"LLM confidence below 0.4", "Cache miss rate high"</td><td>✅ Always</td></tr>
+            <tr><td><span class="lvl-badge error">ERROR</span></td><td>Something broke</td><td>"News Agent failed — using cached data"</td><td>✅ Always</td></tr>
+            <tr><td><span class="lvl-badge critical">CRITICAL</span></td><td>System in serious trouble</td><td>"Redis connection lost", "Groq API unreachable"</td><td>✅ Alert!</td></tr>
+          </tbody>
+        </table>
+
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">level_filter.txt</span><span class="lang">text</span></div>
+          <pre>Set level to WARNING → shows: WARNING, ERROR, CRITICAL
+                      hides: DEBUG, INFO (too noisy at scale)
+
+Development → DEBUG   (see everything)
+Production  → WARNING (only see problems)</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C03</span>
+        <h3>Structured Logging — Machine-Searchable Events</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="log-compare">
+          <div class="lc-col unstruct">
+            <div class="lc-col-head">❌ UNSTRUCTURED (print)</div>
+            <pre style="color:#7a8099">📈 Fetching AAPL...
+✅ $189.3 | RSI: 58.4
+📰 Sentiment: 0.68
+
+Human readable? YES
+Machine queryable? NO
+"All RSI > 70"? IMPOSSIBLE</pre>
+          </div>
+          <div class="lc-col struct">
+            <div class="lc-col-head">✅ STRUCTURED (JSON)</div>
+            <pre style="color:#86e1a0">{"level":"INFO",
+ "agent":"price_agent",
+ "ticker":"AAPL",
+ "rsi":58.4,
+ "duration_ms":342,
+ "request_id":"a1b2"}
+
+Human readable? Barely
+Machine queryable? YES ✅
+Can query RSI, ticker, etc.</pre>
+          </div>
+        </div>
+
+        <p>Structured logs can be sent to <strong>Elasticsearch, Datadog, CloudWatch, Grafana</strong> — enabling dashboards, alerts, and instant queries across millions of events.</p>
+      </div>
+    </div>
+
+    <div class="concept">
+      <div class="concept-head" onclick="toggleConcept(this)">
+        <span class="concept-num">C04</span>
+        <h3>Request Tracing — The Package Tracking Number</h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="concept-body">
+        <div class="analogy">
+          <strong class="label">🌍 REAL WORLD — AMAZON PACKAGE TRACKING</strong>
+          Mumbai warehouse → Delhi hub → Local facility → Delivered. At EVERY step, the tracking number stays THE SAME. That's how you see the full journey of ONE package across multiple facilities. Without a tracking number: "A package arrived at Delhi hub" — which package? No way to know.
+        </div>
+
+        <div class="trace-flow">
+          <div class="trace-title">REQUEST TRACING — SAME request_id THROUGH ALL AGENTS</div>
+          <div class="trace-row">
+            <span class="trace-agent">API</span>
+            <span class="trace-log">Analysis started — ticker=AAPL, <span class="req-id">request_id="req_a1b2c3"</span></span>
+          </div>
+          <div class="trace-connector">↓</div>
+          <div class="trace-row">
+            <span class="trace-agent">Price</span>
+            <span class="trace-log">Fetched $189.3, RSI=58.4, duration=340ms — <span class="req-id">request_id="req_a1b2c3"</span></span>
+          </div>
+          <div class="trace-connector">↓</div>
+          <div class="trace-row">
+            <span class="trace-agent">News</span>
+            <span class="trace-log">Fetched 5 headlines, sentiment=0.68 — <span class="req-id">request_id="req_a1b2c3"</span></span>
+          </div>
+          <div class="trace-connector">↓</div>
+          <div class="trace-row">
+            <span class="trace-agent">Risk</span>
+            <span class="trace-log" style="color:var(--red)">ERROR: yfinance timeout after 30s — <span class="req-id">request_id="req_a1b2c3"</span></span>
+          </div>
+          <div class="trace-connector">↓</div>
+          <div class="trace-row">
+            <span class="trace-agent">Report</span>
+            <span class="trace-log" style="color:var(--yellow)">Partial report — risk_level=null — <span class="req-id">request_id="req_a1b2c3"</span></span>
+          </div>
+        </div>
+
+        <div class="callout info">
+          <strong>WHY THIS MATTERS</strong>
+          User reports "my AAPL analysis at 2:30pm was wrong." You query <code>request_id="req_a1b2c3"</code> → instantly see the complete picture. Risk Agent timed out, Report ran with partial data. Mystery solved in 10 seconds instead of 2 hours of log hunting.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CODE -->
+  <div class="section" id="code">
+    <div class="section-label">
+      <span class="tag">CODE</span>
+      <h2>Build the Logging System</h2>
+    </div>
+
+    <div class="tabs">
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab(this,'t-logger')">logger.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-metrics')">metrics.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-agent')">price_agent.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-state')">state.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-api')">api/main.py</button>
+        <button class="tab-btn" onclick="switchTab(this,'t-output')">Live Output</button>
+      </div>
+
+      <div id="t-logger" class="tab-content active">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">core/logger.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> logging
+<span class="ck">import</span> json
+<span class="ck">import</span> sys
+<span class="ck">from</span> datetime <span class="ck">import</span> datetime, timezone
+<span class="ck">from</span> core.config <span class="ck">import</span> config
+
+<span class="ck">class</span> <span class="cf">StructuredFormatter</span>(logging.Formatter):
+    <span class="cs">"""
+    Custom formatter that outputs JSON instead of plain text.
+    Overrides format() — called automatically for every log message.
+    """</span>
+
+    <span class="ck">def</span> <span class="cf">format</span>(self, record: logging.LogRecord) -> str:
+        log_entry = {
+            <span class="cs">"timestamp"</span>: datetime.<span class="cf">now</span>(timezone.utc).<span class="cf">isoformat</span>(),
+            <span class="cm"># timezone.utc = consistent timestamps across timezones</span>
+
+            <span class="cs">"level"</span>:    record.levelname,
+            <span class="cm"># "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"</span>
+
+            <span class="cs">"logger"</span>:   record.name,
+            <span class="cm"># which logger created this: "stock_agent.price_agent"</span>
+
+            <span class="cs">"message"</span>:  record.<span class="cf">getMessage</span>(),
+            <span class="cs">"module"</span>:   record.module,
+            <span class="cs">"function"</span>: record.funcName,
+            <span class="cs">"line"</span>:     record.lineno,
+            <span class="cs">"version"</span>:  config.APP_VERSION
+            <span class="cm"># always tag logs with app version for debugging deployments</span>
+        }
+
+        <span class="cm"># Add any extra fields attached to this log record</span>
+        <span class="cm"># This is how we add ticker, request_id, duration_ms, etc.</span>
+        <span class="ck">if</span> <span class="cf">hasattr</span>(record, <span class="cs">"extra_fields"</span>):
+            log_entry.<span class="cf">update</span>(record.extra_fields)
+
+        <span class="cm"># Add traceback if this log includes an exception</span>
+        <span class="ck">if</span> record.exc_info:
+            log_entry[<span class="cs">"exception"</span>] = self.<span class="cf">formatException</span>(record.exc_info)
+
+        <span class="ck">return</span> json.<span class="cf">dumps</span>(log_entry, <span class="cp">ensure_ascii</span>=<span class="ck">False</span>)
+
+
+<span class="ck">def</span> <span class="cf">get_logger</span>(name: str) -> logging.Logger:
+    <span class="cs">"""
+    Creates a named logger. Call ONCE at module level — not inside functions.
+    Usage: logger = get_logger("price_agent")
+    """</span>
+    logger = logging.<span class="cf">getLogger</span>(<span class="cs">f"stock_agent.{name}"</span>)
+    <span class="cm"># Hierarchical names let you control levels per part of system</span>
+
+    <span class="ck">if not</span> logger.handlers:
+        <span class="cm"># ── Console Handler ──────────────────────────────</span>
+        console_handler = logging.<span class="cf">StreamHandler</span>(sys.stdout)
+        console_handler.<span class="cf">setFormatter</span>(<span class="cf">StructuredFormatter</span>())
+        logger.<span class="cf">addHandler</span>(console_handler)
+
+        <span class="cm"># ── File Handler ──────────────────────────────────</span>
+        <span class="ck">try</span>:
+            <span class="ck">import</span> os
+            os.<span class="cf">makedirs</span>(<span class="cs">"logs"</span>, <span class="cp">exist_ok</span>=<span class="ck">True</span>)
+            file_handler = logging.<span class="cf">FileHandler</span>(<span class="cs">"logs/stock_agent.log"</span>, <span class="cp">encoding</span>=<span class="cs">"utf-8"</span>)
+            file_handler.<span class="cf">setFormatter</span>(<span class="cf">StructuredFormatter</span>())
+            logger.<span class="cf">addHandler</span>(file_handler)
+        <span class="ck">except</span> Exception:
+            <span class="ck">pass</span>  <span class="cm"># read-only filesystem → console logging still works</span>
+
+    logger.<span class="cf">setLevel</span>(logging.DEBUG)
+    logger.propagate = <span class="ck">False</span>
+    <span class="cm"># propagate=False prevents logs bubbling to root logger (no duplicates)</span>
+    <span class="ck">return</span> logger
+
+
+<span class="ck">def</span> <span class="cf">log_with_context</span>(logger: logging.Logger, level: str, message: str, **kwargs):
+    <span class="cs">"""
+    Helper to log with extra context fields cleanly.
+    log_with_context(logger, "info", "msg", ticker="AAPL", rsi=58.4)
+    """</span>
+    log_method = <span class="cf">getattr</span>(logger, level.<span class="cf">lower</span>())
+    <span class="cm"># getattr(logger, "info") → logger.info  (dynamic method lookup)</span>
+    log_method(message, <span class="cp">extra</span>={<span class="cs">"extra_fields"</span>: kwargs})</pre>
+        </div>
+      </div>
+
+      <div id="t-metrics" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">core/metrics.py</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> time
+<span class="ck">import</span> json
+<span class="ck">from</span> datetime <span class="ck">import</span> datetime, timezone
+<span class="ck">from</span> memory.redis_client <span class="ck">import</span> redis_client
+
+<span class="ck">class</span> <span class="cf">AgentMetrics</span>:
+    <span class="cs">"""
+    Tracks per-agent timing for every request.
+    Stores in Redis so metrics persist and can be queried.
+    """</span>
+
+    <span class="ck">def</span> <span class="cf">__init__</span>(self, request_id: str, ticker: str):
+        self.request_id   = request_id
+        self.ticker       = ticker
+        self.start_time   = time.<span class="cf">time</span>()
+        self.agent_timings = {}
+
+    <span class="ck">def</span> <span class="cf">start_agent</span>(self, agent_name: str):
+        <span class="cs">"""Call when an agent STARTS running"""</span>
+        self.agent_timings[agent_name] = {<span class="cs">"start"</span>: time.<span class="cf">time</span>()}
+
+    <span class="ck">def</span> <span class="cf">end_agent</span>(self, agent_name: str, success: bool = <span class="ck">True</span>, **extra_data):
+        <span class="cs">"""Call when an agent FINISHES running"""</span>
+        <span class="ck">if</span> agent_name <span class="ck">in</span> self.agent_timings:
+            start       = self.agent_timings[agent_name][<span class="cs">"start"</span>]
+            duration_ms = <span class="cf">round</span>((time.<span class="cf">time</span>() - start) * <span class="cn">1000</span>, <span class="cn">2</span>)
+            <span class="cm"># × 1000 converts seconds → milliseconds</span>
+            self.agent_timings[agent_name].<span class="cf">update</span>({
+                <span class="cs">"duration_ms"</span>: duration_ms,
+                <span class="cs">"success"</span>: success,
+                **extra_data  <span class="cm"># e.g. cache_hit=True, risk_level="HIGH"</span>
+            })
+
+    <span class="ck">def</span> <span class="cf">save</span>(self, final_recommendation: str = <span class="ck">None</span>):
+        <span class="cs">"""Saves complete metrics record to Redis"""</span>
+        total_duration_ms = <span class="cf">round</span>((time.<span class="cf">time</span>() - self.start_time) * <span class="cn">1000</span>, <span class="cn">2</span>)
+
+        metrics_record = {
+            <span class="cs">"request_id"</span>:           self.request_id,
+            <span class="cs">"ticker"</span>:               self.ticker,
+            <span class="cs">"timestamp"</span>:            datetime.<span class="cf">now</span>(timezone.utc).<span class="cf">isoformat</span>(),
+            <span class="cs">"total_duration_ms"</span>:    total_duration_ms,
+            <span class="cs">"agent_timings"</span>:        self.agent_timings,
+            <span class="cs">"final_recommendation"</span>: final_recommendation,
+            <span class="cs">"success"</span>: <span class="cf">all</span>(
+                v.<span class="cf">get</span>(<span class="cs">"success"</span>, <span class="ck">True</span>)
+                <span class="ck">for</span> v <span class="ck">in</span> self.agent_timings.<span class="cf">values</span>()
+                <span class="ck">if</span> <span class="cf">isinstance</span>(v, dict) <span class="ck">and</span> <span class="cs">"success"</span> <span class="ck">in</span> v
+            )
+        }
+
+        redis_client.<span class="cf">set</span>(<span class="cs">f"metrics:{self.request_id}"</span>, json.<span class="cf">dumps</span>(metrics_record), <span class="cp">ex</span>=<span class="cn">86400</span>)
+
+        <span class="cm"># Add to sorted set — keeps N most recent by timestamp score</span>
+        redis_client.<span class="cf">zadd</span>(<span class="cs">"metrics:recent"</span>, {self.request_id: time.<span class="cf">time</span>()})
+        redis_client.<span class="cf">zremrangebyrank</span>(<span class="cs">"metrics:recent"</span>, <span class="cn">0</span>, -<span class="cn">101</span>)
+        <span class="cm"># zremrangebyrank(0, -101) = keep only the most recent 100</span>
+
+        <span class="ck">return</span> metrics_record
+
+
+<span class="ck">def</span> <span class="cf">get_recent_metrics</span>(count: int = <span class="cn">10</span>) -> list:
+    <span class="cs">"""Returns metrics for most recent N requests. Used by /metrics endpoint."""</span>
+    recent_ids = redis_client.<span class="cf">zrevrange</span>(<span class="cs">"metrics:recent"</span>, <span class="cn">0</span>, count - <span class="cn">1</span>)
+    <span class="cm"># zrevrange = reverse order (newest first), positions 0 to count-1</span>
+    metrics = []
+    <span class="ck">for</span> req_id <span class="ck">in</span> recent_ids:
+        data = redis_client.<span class="cf">get</span>(<span class="cs">f"metrics:{req_id}"</span>)
+        <span class="ck">if</span> data:
+            metrics.<span class="cf">append</span>(json.<span class="cf">loads</span>(data))
+    <span class="ck">return</span> metrics</pre>
+        </div>
+      </div>
+
+      <div id="t-agent" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">agents/price_agent.py — updated with logging</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> uuid
+<span class="ck">from</span> core.logger <span class="ck">import</span> get_logger, log_with_context
+
+<span class="cm"># Call get_logger ONCE at module level — not inside the function</span>
+<span class="cm"># Creates "stock_agent.price_agent" logger, reused for all calls</span>
+logger = <span class="cf">get_logger</span>(<span class="cs">"price_agent"</span>)
+
+<span class="ck">async def</span> <span class="cf">price_agent_node</span>(state: StockAnalysisState) -> dict:
+    ticker     = state[<span class="cs">"ticker"</span>]
+    request_id = state.<span class="cf">get</span>(<span class="cs">"request_id"</span>, <span class="cf">str</span>(uuid.<span class="cf">uuid4</span>()))
+    <span class="cm"># request_id flows through all agents via state</span>
+    <span class="cm"># uuid4() = random unique ID like "a1b2c3d4-e5f6-..."</span>
+
+    <span class="cf">log_with_context</span>(logger, <span class="cs">"info"</span>, <span class="cs">"Price Agent started"</span>,
+                     <span class="cp">ticker</span>=ticker, <span class="cp">request_id</span>=request_id, <span class="cp">agent</span>=<span class="cs">"price_agent"</span>)
+
+    <span class="cm"># ── Check cache ───────────────────────────────────────</span>
+    cached_data = <span class="cf">get_cached</span>(<span class="cs">"price"</span>, ticker)
+    <span class="ck">if</span> cached_data:
+        <span class="cf">log_with_context</span>(logger, <span class="cs">"info"</span>, <span class="cs">"Cache HIT — returning cached data"</span>,
+                         <span class="cp">ticker</span>=ticker, <span class="cp">request_id</span>=request_id, <span class="cp">cache_hit</span>=<span class="ck">True</span>)
+        <span class="ck">return</span> {**cached_data, <span class="cs">"errors"</span>: []}
+
+    <span class="cm"># ── Fetch fresh data ──────────────────────────────────</span>
+    <span class="ck">import</span> time
+    start = time.<span class="cf">time</span>()
+    <span class="ck">try</span>:
+        result      = <span class="ck">await</span> <span class="cf">run_sync_in_thread</span>(_fetch_price_sync, ticker)
+        duration_ms = <span class="cf">round</span>((time.<span class="cf">time</span>() - start) * <span class="cn">1000</span>, <span class="cn">2</span>)
+
+        <span class="cf">log_with_context</span>(logger, <span class="cs">"info"</span>, <span class="cs">"Price data fetched successfully"</span>,
+                         <span class="cp">ticker</span>=ticker, <span class="cp">request_id</span>=request_id,
+                         <span class="cp">price</span>=result[<span class="cs">"current_price"</span>], <span class="cp">rsi</span>=result[<span class="cs">"rsi"</span>],
+                         <span class="cp">duration_ms</span>=duration_ms, <span class="cp">cache_hit</span>=<span class="ck">False</span>)
+
+        <span class="cf">set_cached</span>(<span class="cs">"price"</span>, ticker, result)
+        <span class="ck">return</span> {**result, <span class="cs">"errors"</span>: []}
+
+    <span class="ck">except</span> Exception <span class="ck">as</span> e:
+        <span class="cf">log_with_context</span>(logger, <span class="cs">"error"</span>, <span class="cs">f"Price Agent failed: {str(e)}"</span>,
+                         <span class="cp">ticker</span>=ticker, <span class="cp">request_id</span>=request_id, <span class="cp">error</span>=<span class="cf">str</span>(e))
+        <span class="ck">return</span> {<span class="cs">"current_price"</span>: <span class="ck">None</span>, <span class="cs">"price_change_pct"</span>: <span class="ck">None</span>,
+                <span class="cs">"rsi"</span>: <span class="ck">None</span>, <span class="cs">"errors"</span>: [<span class="cs">f"Price Agent failed: {str(e)}"</span>]}</pre>
+        </div>
+      </div>
+
+      <div id="t-state" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">core/state.py — add request_id</span><span class="lang">python</span></div>
+          <pre><span class="ck">class</span> <span class="cf">StockAnalysisState</span>(TypedDict):
+    <span class="cm"># ── INPUT ──────────────────────────────────────────</span>
+    ticker:      str
+    query_type:  Optional[str]
+    request_id:  Optional[str]    <span class="cm"># ← NEW — flows through ALL agents</span>
+    <span class="cm"># request_id is generated once in the API layer and passed</span>
+    <span class="cm"># into initial_state, then every agent reads it from state</span>
+    <span class="cm"># and includes it in every log line — this is request tracing</span>
+
+    <span class="cm"># ── ORCHESTRATOR fills these ───────────────────────</span>
+    analysis_type:         Optional[str]
+    should_fetch_news:     Optional[bool]
+    should_calculate_risk: Optional[bool]
+
+    <span class="cm"># ── PRICE AGENT fills these ────────────────────────</span>
+    current_price:    Optional[float]
+    price_change_pct: Optional[float]
+    rsi:              Optional[float]
+
+    <span class="cm"># ... rest of fields unchanged ...</span></pre>
+        </div>
+      </div>
+
+      <div id="t-api" class="tab-content">
+        <div class="code-wrap">
+          <div class="code-bar"><span class="filename">api/main.py — request_id + /metrics endpoint</span><span class="lang">python</span></div>
+          <pre><span class="ck">import</span> uuid
+<span class="ck">from</span> core.logger <span class="ck">import</span> get_logger, log_with_context
+<span class="ck">from</span> core.metrics <span class="ck">import</span> get_recent_metrics
+
+logger = <span class="cf">get_logger</span>(<span class="cs">"api"</span>)
+
+@app.<span class="cf">post</span>(<span class="cs">"/analyze"</span>, <span class="cp">response_model</span>=AnalysisResponse, <span class="cp">tags</span>=[<span class="cs">"Analysis"</span>])
+<span class="ck">def</span> <span class="cf">analyze_stock</span>(request: AnalysisRequest):
+
+    <span class="cm"># Generate unique request ID — this is the "tracking number"</span>
+    request_id = <span class="cf">str</span>(uuid.<span class="cf">uuid4</span>())
+
+    <span class="cf">log_with_context</span>(logger, <span class="cs">"info"</span>, <span class="cs">"Analysis request received"</span>,
+                     <span class="cp">ticker</span>=request.ticker, <span class="cp">query_type</span>=request.query_type,
+                     <span class="cp">request_id</span>=request_id, <span class="cp">session_id</span>=request.session_id)
+
+    initial_state = {
+        <span class="cs">"ticker"</span>:     request.ticker,
+        <span class="cs">"query_type"</span>: request.query_type,
+        <span class="cs">"request_id"</span>: request_id,    <span class="cm"># ← injected into state here</span>
+        <span class="cm"># ... rest of None fields ...</span>
+    }
+
+    <span class="ck">try</span>:
+        final_state = graph.<span class="cf">invoke</span>(initial_state)
+    <span class="ck">except</span> Exception <span class="ck">as</span> e:
+        <span class="cf">log_with_context</span>(logger, <span class="cs">"critical"</span>,
+                         <span class="cs">f"Analysis pipeline crashed: {str(e)}"</span>,
+                         <span class="cp">ticker</span>=request.ticker, <span class="cp">request_id</span>=request_id)
+        <span class="ck">raise</span> <span class="cf">HTTPException</span>(<span class="cp">status_code</span>=<span class="cn">500</span>, <span class="cp">detail</span>=<span class="cf">str</span>(e))
+
+    report = json.<span class="cf">loads</span>(final_state.<span class="cf">get</span>(<span class="cs">"final_report"</span>, <span class="cs">"{}"</span>))
+
+    <span class="cf">log_with_context</span>(logger, <span class="cs">"info"</span>, <span class="cs">"Analysis completed"</span>,
+                     <span class="cp">ticker</span>=request.ticker, <span class="cp">request_id</span>=request_id,
+                     <span class="cp">recommendation</span>=report.<span class="cf">get</span>(<span class="cs">"verdict"</span>, {}).<span class="cf">get</span>(<span class="cs">"recommendation"</span>),
+                     <span class="cp">confidence</span>=report.<span class="cf">get</span>(<span class="cs">"verdict"</span>, {}).<span class="cf">get</span>(<span class="cs">"confidence"</span>))
+    <span class="ck">return</span> report
+
+
+@app.<span class="cf">get</span>(<span class="cs">"/metrics"</span>, <span class="cp">tags</span>=[<span class="cs">"Monitoring"</span>])
+<span class="ck">def</span> <span class="cf">get_metrics</span>(count: int = <span class="cn">10</span>):
+    <span class="cs">"""
+    Returns metrics for the most recent N analyses.
+    Shows per-agent duration, cache hits, success rates.
+    """</span>
+    metrics = <span class="cf">get_recent_metrics</span>(count)
+    <span class="ck">return</span> {<span class="cs">"count"</span>: <span class="cf">len</span>(metrics), <span class="cs">"metrics"</span>: metrics}</pre>
+        </div>
+      </div>
+
+      <div id="t-output" class="tab-content">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">After running <code>uvicorn api.main:app --reload</code> and triggering an analysis, you'll see structured JSON instead of plain print() text:</p>
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="terminal-dot red"></div>
+            <div class="terminal-dot yellow"></div>
+            <div class="terminal-dot green"></div>
+          </div>
+          <pre>{"timestamp":"2026-06-16T14:30:00Z","level":"INFO","logger":"stock_agent.api","message":"Analysis request received","ticker":"AAPL","query_type":"full","request_id":"a1b2c3d4","version":"1.0.0"}
+
+{"timestamp":"2026-06-16T14:30:00Z","level":"INFO","logger":"stock_agent.price_agent","message":"Price Agent started","ticker":"AAPL","request_id":"a1b2c3d4","agent":"price_agent"}
+
+{"timestamp":"2026-06-16T14:30:00Z","level":"INFO","logger":"stock_agent.price_agent","message":"Cache MISS — fetching fresh data","ticker":"AAPL","request_id":"a1b2c3d4","cache_hit":false}
+
+{"timestamp":"2026-06-16T14:30:00Z","level":"INFO","logger":"stock_agent.price_agent","message":"Price data fetched successfully","ticker":"AAPL","price":189.3,"rsi":58.4,"duration_ms":342,"request_id":"a1b2c3d4"}
+
+{"timestamp":"2026-06-16T14:30:02Z","level":"INFO","logger":"stock_agent.api","message":"Analysis completed","ticker":"AAPL","recommendation":"BUY","confidence":0.81,"request_id":"a1b2c3d4"}
+
+<span style="color:var(--day12)">Every log line has: timestamp, level, agent, ticker, request_id, duration.
+Query by request_id to reconstruct the complete picture of any analysis.</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERVIEW QA -->
+  <div class="section" id="interview">
+    <div class="section-label">
+      <span class="tag">INTERVIEW</span>
+      <h2>Q&A — Day 12</h2>
+    </div>
+    <div class="qa-list">
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q1</span><span class="qa-qtext">Why is print() insufficient for production logging and what does structured logging solve?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">print() outputs unformatted text to stdout with no timestamp, no severity level, no request context, and no searchability. In production where thousands of requests run concurrently, you need to know WHEN something happened, FOR WHICH REQUEST, at what SEVERITY level, and you need to QUERY logs programmatically. Structured JSON logging gives every event a machine-readable format that can be stored in logging platforms like Datadog or Elasticsearch and queried instantly.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q2</span><span class="qa-qtext">Explain the log level hierarchy and how you'd configure it differently for dev vs production.</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Log levels go DEBUG → INFO → WARNING → ERROR → CRITICAL. Setting a level filters out everything below it. In development I run at DEBUG to see every step of every agent. In production I run at WARNING because INFO-level logs for thousands of requests per minute would generate gigabytes of data and make actual problems hard to spot. Only WARNING and above represents something worth a human's attention in production — the normal INFO flow is just noise at scale.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q3</span><span class="qa-qtext">What is request tracing and why is it essential in a multi-agent system?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Request tracing assigns a unique request_id to each incoming request and threads it through every agent as part of the State. Every log line from every agent includes this ID. When a user reports a failed analysis, I query logs by request_id and instantly see the complete picture — which agent failed, how long each step took, what data was fetched — across all the agents that handled that specific request. Without it, logs from concurrent requests are interleaved and impossible to correlate.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q4</span><span class="qa-qtext">How does your metrics system help you catch performance degradation before users notice?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">AgentMetrics tracks per-agent duration in milliseconds for every request and stores them in Redis with a 24-hour TTL. The /metrics endpoint surfaces recent timings. If news_agent duration suddenly spikes from 2 seconds to 8 seconds, it means Tavily's API is slowing down — visible in metrics before users start complaining. You can set alerts: "if any agent averages over 5 seconds for 10 consecutive requests, send a Slack notification." Reactive debugging turned into proactive monitoring.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q5</span><span class="qa-qtext">Why do you call get_logger() at module level instead of inside each function?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Creating a logger is not free — it involves looking up the logger registry, setting up handlers, configuring formatters. Calling it inside a function means this setup overhead happens on every single function call. At module level it runs once when the module is imported and the logger object is reused for every subsequent call from that module. It's also cleaner — the logger is a module-level resource that conceptually belongs to the module, not to individual function invocations.</div>
+      </div>
+      <div class="qa-item" onclick="toggleQA(this)">
+        <div class="qa-q"><span class="qa-num">Q6</span><span class="qa-qtext">What would you add to make this observability system truly production-grade?</span><span class="qa-chevron">▼</span></div>
+        <div class="qa-a">Several additions: first, centralized log aggregation — shipping logs to Datadog, CloudWatch, or a self-hosted ELK stack so logs from multiple instances are searchable in one place. Second, metrics dashboards in Grafana showing cache hit rate over time, average agent duration, error rates per ticker. Third, alerting — PagerDuty or Slack notifications when error rate exceeds 5% or when CRITICAL logs appear. Fourth, distributed tracing with OpenTelemetry so traces span across services if we split agents into microservices later.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTube -->
+  <div class="section">
+    <div class="section-label">
+      <span class="tag">REFERENCES</span>
+      <h2>YouTube Resources</h2>
+    </div>
+    <div class="yt-links">
+      <a class="yt-link" href="https://www.youtube.com/watch?v=-ARI4Cz-awo" target="_blank"><span class="yt-icon">▶</span> Python Logging Module</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=99_-HhCrLx4" target="_blank"><span class="yt-icon">▶</span> Structured Logging Explained</a>
+      <a class="yt-link" href="https://www.youtube.com/watch?v=ACL_YVPD3gw" target="_blank"><span class="yt-icon">▶</span> Observability for Engineers</a>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div class="section">
+    <div class="checklist">
+      <h3>✅ DAY 12 CHECKLIST</h3>
+      <div class="check-grid">
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood why print() fails in production</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood log levels — DEBUG/INFO/WARNING/ERROR/CRITICAL</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood structured logging — JSON, machine searchable</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Understood request tracing — request_id through all agents</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>core/logger.py created — StructuredFormatter + get_logger</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>core/metrics.py created — AgentMetrics + get_recent_metrics</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>core/state.py updated — request_id field added</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>price_agent.py updated — replaced print() with logger calls</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>api/main.py updated — request_id generated + /metrics endpoint</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Saw structured JSON logs in terminal (not plain text)</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Saw same request_id across all agent log lines</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Tested /metrics endpoint — saw timing data</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Can explain all 6 interview questions confidently</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleConcept(head) { head.parentElement.classList.toggle('open'); }
+  function toggleQA(item) { item.classList.toggle('open'); }
+  function switchTab(btn, targetId) {
+    const nav  = btn.closest('.tab-nav');
+    const tabs = btn.closest('.tabs');
+    nav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tabs.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(targetId).classList.add('active');
+  }
+  function toggleCheck(item) {
+    item.classList.toggle('checked');
+    item.querySelector('.check-box').textContent = item.classList.contains('checked') ? '✓' : '';
+  }
+</script>
+</body>
+</html>

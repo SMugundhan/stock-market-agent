@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 1 — AI Agents, ReAct & Setup</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --code-bg: #0d1117;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    min-height: 100vh;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0,212,255,0.05) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(124,58,237,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .day-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,212,255,0.08);
+    border: 1px solid rgba(0,212,255,0.25);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 6px 14px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .day-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 800;
+    line-height: 1.15;
+    color: #fff;
+    margin-bottom: 16px;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .header-meta {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+
+  .meta-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .meta-pill .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+
+  /* ── GOAL BOX ── */
+  .goal-box {
+    background: linear-gradient(135deg, rgba(0,212,255,0.06), rgba(124,58,237,0.06));
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+
+  .goal-box h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+
+  .goal-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+  }
+
+  .goal-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    color: #94a3b8;
+  }
+
+  .goal-list li::before {
+    content: '→';
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── SECTION TITLES ── */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  h2 .icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  /* ── CONCEPT CARDS ── */
+  .concept-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .concept-block::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+  }
+
+  .concept-block.purple::before { background: var(--accent2); }
+  .concept-block.green::before { background: var(--accent3); }
+  .concept-block.warn::before { background: var(--warn); }
+
+  .concept-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .concept-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    font-style: italic;
+  }
+
+  /* ── SCENARIO BOX ── */
+  .scenario {
+    background: rgba(16,185,129,0.06);
+    border: 1px solid rgba(16,185,129,0.2);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 18px 0;
+  }
+
+  .scenario-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent3);
+    margin-bottom: 10px;
+  }
+
+  .scenario p {
+    font-size: 14px;
+    color: #94a3b8;
+    line-height: 1.7;
+  }
+
+  /* ── CODE BLOCKS ── */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 18px 0;
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-lang {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .code-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .code-dots span {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+
+  pre {
+    padding: 20px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #e2e8f0;
+  }
+
+  .cm { color: #64748b; font-style: italic; }
+  .ck { color: #7c3aed; }
+  .cs { color: #10b981; }
+  .cn { color: #f59e0b; }
+  .cf { color: #00d4ff; }
+
+  /* ── COMPARISON TABLE ── */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+
+  .compare-table th {
+    background: rgba(0,212,255,0.08);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .compare-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(30,45,69,0.6);
+    color: #94a3b8;
+    vertical-align: top;
+  }
+
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .compare-table td:first-child {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 18px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 2;
+    color: #94a3b8;
+    overflow-x: auto;
+  }
+
+  .flow .node { color: var(--accent); }
+  .flow .arrow { color: var(--muted); }
+  .flow .label { color: var(--accent3); }
+  .flow .comment { color: #475569; font-style: italic; }
+
+  /* ── CALLOUT ── */
+  .callout {
+    display: flex;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+
+  .callout.info {
+    background: rgba(0,212,255,0.06);
+    border: 1px solid rgba(0,212,255,0.18);
+    color: #93c5fd;
+  }
+
+  .callout.warn {
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.2);
+    color: #fcd34d;
+  }
+
+  .callout.danger {
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.2);
+    color: #fca5a5;
+  }
+
+  .callout.success {
+    background: rgba(16,185,129,0.06);
+    border: 1px solid rgba(16,185,129,0.2);
+    color: #6ee7b7;
+  }
+
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── STEPS ── */
+  .step {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 18px;
+    top: 40px;
+    bottom: -8px;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--border), transparent);
+  }
+
+  .step-num {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-content { flex: 1; }
+
+  .step-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .step-desc {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 12px;
+  }
+
+  /* ── PACKAGE TABLE ── */
+  .pkg-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px;
+    margin: 18px 0;
+  }
+
+  .pkg-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .pkg-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    white-space: nowrap;
+    min-width: 100px;
+  }
+
+  .pkg-desc { font-size: 13px; color: #64748b; line-height: 1.5; }
+
+  /* ── INTERVIEW SECTION ── */
+  .interview-section {
+    background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(0,212,255,0.04));
+    border: 1px solid rgba(124,58,237,0.25);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 32px;
+  }
+
+  .interview-section h2 {
+    color: #a78bfa;
+    margin-bottom: 24px;
+  }
+
+  .qa-item {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(124,58,237,0.15);
+  }
+
+  .qa-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .question {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #c4b5fd;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 10px;
+  }
+
+  .q-badge {
+    background: rgba(124,58,237,0.3);
+    color: #a78bfa;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+
+  .answer {
+    font-size: 14px;
+    color: #94a3b8;
+    line-height: 1.75;
+    padding-left: 50px;
+  }
+
+  .answer strong { color: var(--accent); font-weight: 500; }
+
+  /* ── KEY TAKEAWAYS ── */
+  .takeaway-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .takeaway-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+  }
+
+  .takeaway-icon { font-size: 28px; margin-bottom: 10px; }
+
+  .takeaway-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+
+  .takeaway-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
+
+  /* ── CHECKLIST ── */
+  .checklist {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 32px;
+  }
+
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(30,45,69,0.5);
+    font-size: 14px;
+    color: #94a3b8;
+  }
+
+  .check-item:last-child { border-bottom: none; }
+
+  .checkbox {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .checkbox:checked {
+    background: var(--accent3);
+    border-color: var(--accent3);
+  }
+
+  .checkbox:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #000;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* ── YOUTUBE REFS ── */
+  .yt-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 18px 0;
+  }
+
+  .yt-link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    text-decoration: none;
+    transition: all 0.2s;
+    color: inherit;
+  }
+
+  .yt-link:hover {
+    border-color: rgba(239,68,68,0.4);
+    background: rgba(239,68,68,0.05);
+  }
+
+  .yt-icon {
+    width: 36px; height: 36px;
+    background: #ff0000;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .yt-title { font-size: 14px; color: var(--text); font-weight: 500; }
+  .yt-url { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+  /* ── LLM SECTION ── */
+  .temperature-viz {
+    display: flex;
+    gap: 0;
+    margin: 18px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .temp-block {
+    flex: 1;
+    padding: 16px 12px;
+    text-align: center;
+    font-size: 12px;
+  }
+
+  .temp-block:nth-child(1) { background: rgba(0,212,255,0.05); }
+  .temp-block:nth-child(2) { background: rgba(16,185,129,0.05); }
+  .temp-block:nth-child(3) { background: rgba(245,158,11,0.05); }
+  .temp-block:nth-child(4) { background: rgba(239,68,68,0.05); }
+
+  .temp-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .temp-block:nth-child(1) .temp-val { color: var(--accent); }
+  .temp-block:nth-child(2) .temp-val { color: var(--accent3); }
+  .temp-block:nth-child(3) .temp-val { color: var(--warn); }
+  .temp-block:nth-child(4) .temp-val { color: var(--danger); }
+
+  .temp-label { color: #fff; font-weight: 600; font-size: 12px; margin-bottom: 4px; }
+  .temp-desc { color: #64748b; font-size: 11px; }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--border), transparent);
+    margin: 40px 0;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 32px 0;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  footer span { color: var(--accent); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="day-badge">Day 01 · Multi-Agent Stock Market System</div>
+    <h1>What is an <span>AI Agent?</span><br>ReAct Pattern & Setup</h1>
+    <div class="header-meta">
+      <div class="meta-pill"><div class="dot" style="background:#00d4ff"></div> 4 Core Concepts</div>
+      <div class="meta-pill"><div class="dot" style="background:#10b981"></div> Full Environment Setup</div>
+      <div class="meta-pill"><div class="dot" style="background:#7c3aed"></div> 6 Interview Q&As</div>
+      <div class="meta-pill"><div class="dot" style="background:#f59e0b"></div> Bonus: Temperature + Prompt Engineering</div>
+    </div>
+  </header>
+
+  <!-- GOAL -->
+  <div class="goal-box">
+    <h3>🎯 Today's Goals</h3>
+    <ul class="goal-list">
+      <li>Understand what an AI Agent truly is</li>
+      <li>Master the ReAct reasoning loop</li>
+      <li>Know Chain vs Agent difference</li>
+      <li>Understand LangGraph's role</li>
+      <li>Full project environment ready</li>
+      <li>First LLM call running locally</li>
+    </ul>
+  </div>
+
+  <!-- CONCEPT 1 -->
+  <div class="section-label">🧠 Concept 1</div>
+  <h2><div class="icon" style="background:rgba(0,212,255,0.1)">🤖</div> What is an AI Agent?</h2>
+
+  <div class="concept-block">
+    <div class="concept-title">The Locked Room vs The Analyst</div>
+    <div class="concept-subtitle">Why regular LLMs fall short for real-world tasks</div>
+
+    <div class="scenario">
+      <div class="scenario-label">🌍 Real World Scenario</div>
+      <p>Imagine you're a <strong style="color:#e2e8f0">stock analyst at an investment firm.</strong> Your manager says: <em>"Give me a full analysis of Apple stock by 5pm."</em></p>
+      <p style="margin-top:10px">You don't just answer from memory. You open Bloomberg, read today's news, run risk calculations — then write the report. You used <strong style="color:#e2e8f0">tools + reasoning + real data.</strong></p>
+    </div>
+
+    <table class="compare-table" style="margin-top:20px">
+      <tr><th>Regular LLM</th><th>AI Agent</th></tr>
+      <tr><td>"Analyze Apple stock"<br><span style="color:#ef4444;font-size:12px">→ Answers from training data (months old)</span></td><td>"Analyze Apple stock"<br><span style="color:#10b981;font-size:12px">→ Fetches live price, news, risk metrics</span></td></tr>
+      <tr><td>❌ No real-time data</td><td>✅ Calls yFinance, Tavily, Risk tools</td></tr>
+      <tr><td>❌ Can hallucinate freely</td><td>✅ Observes actual tool results</td></tr>
+      <tr><td>❌ Fixed one-shot response</td><td>✅ Adapts based on what it finds</td></tr>
+    </table>
+
+    <div class="callout info">
+      <div class="callout-icon">💡</div>
+      <div><strong>Simple Definition:</strong> AI Agent = LLM + Tools + Memory + Reasoning Loop. The LLM is the brain — tools are its hands.</div>
+    </div>
+
+    <div class="flow">
+<span class="comment">// What your Stock Market Agent does for "Analyze AAPL"</span>
+<span class="node">Step 1</span> → I need price data      → <span class="label">calls Price Tool</span>    → gets $189.3, RSI=58
+<span class="node">Step 2</span> → I need latest news      → <span class="label">calls Tavily Tool</span>   → gets 5 articles
+<span class="node">Step 3</span> → I need risk score       → <span class="label">calls Risk Tool</span>     → volatility=0.34
+<span class="node">Step 4</span> → I have enough data now  → <span class="label">reasons over it</span>
+<span class="node">Step 5</span> → Format the report       → <span class="label">Report Agent</span>       → returns final JSON
+    </div>
+  </div>
+
+  <!-- CONCEPT 2 -->
+  <div class="divider"></div>
+  <div class="section-label">🧠 Concept 2</div>
+  <h2><div class="icon" style="background:rgba(124,58,237,0.1)">🔄</div> The ReAct Pattern</h2>
+
+  <div class="concept-block purple">
+    <div class="concept-title">Reasoning + Acting — The Brain of Every Agent</div>
+    <div class="concept-subtitle">Used under the hood by LangGraph, CrewAI, AutoGen — every major agent framework</div>
+
+    <div class="scenario">
+      <div class="scenario-label">🌍 Real World Scenario — Sherlock Holmes</div>
+      <p>Holmes doesn't guess. He <strong style="color:#e2e8f0">observes → thinks → acts → observes again</strong> in a loop until he can conclude. That's ReAct exactly.</p>
+    </div>
+
+    <div class="flow" style="margin-top:18px">
+<span class="node">Thought</span>  → <span class="label">"I need AAPL's current price"</span>
+<span class="node">Action</span>   → call_tool(<span class="cs">yfinance</span>, ticker=<span class="cs">"AAPL"</span>)
+<span class="node">Observe</span>  → {price: 189.3, volume: 52M, change: +1.2%}
+
+<span class="node">Thought</span>  → <span class="label">"Now I need recent news about AAPL"</span>
+<span class="node">Action</span>   → call_tool(<span class="cs">tavily_search</span>, query=<span class="cs">"Apple stock news today"</span>)
+<span class="node">Observe</span>  → [{title: "Apple hits record...", sentiment: "positive"}]
+
+<span class="node">Thought</span>  → <span class="label">"I have price + news. Now I can analyze."</span>
+<span class="node">Answer</span>   → <span class="cs">"AAPL at $189.3, up 1.2%, positive sentiment → HOLD"</span>
+    </div>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div>The agent loops <strong>until it decides it has enough information.</strong> It's not a fixed number of steps — it reasons about when to stop.</div>
+    </div>
+  </div>
+
+  <!-- CONCEPT 3 -->
+  <div class="divider"></div>
+  <div class="section-label">🧠 Concept 3</div>
+  <h2><div class="icon" style="background:rgba(16,185,129,0.1)">⛓️</div> Chain vs Agent</h2>
+
+  <div class="concept-block green">
+    <div class="concept-title">Assembly Line vs Surgeon</div>
+
+    <div class="scenario">
+      <div class="scenario-label">🌍 Real World Scenario</div>
+      <p><strong style="color:#e2e8f0">Chain = Assembly line.</strong> Every product goes through Machine 1 → 2 → 3. No flexibility. That's your RAG project.<br><br>
+      <strong style="color:#e2e8f0">Agent = Surgeon.</strong> Every operation is different. The surgeon picks tools based on what they find inside. That's this project.</p>
+    </div>
+
+    <table class="compare-table" style="margin-top:18px">
+      <tr><th>Chain (Your RAG Project)</th><th>Agent (This Project)</th></tr>
+      <tr><td>Fixed predetermined flow</td><td>Dynamic — LLM decides the flow</td></tr>
+      <tr><td>Input → Step1 → Step2 → Output</td><td>Input → Think → Maybe loop → Output</td></tr>
+      <tr><td>Always same order</td><td>Order changes based on input</td></tr>
+      <tr><td>Simple, predictable</td><td>Flexible, powerful</td></tr>
+    </table>
+
+    <div class="callout info">
+      <div class="callout-icon">💡</div>
+      <div><strong>Interview angle:</strong> "My RAG project was a chain — fixed flow. My stock agent is agentic — the LLM decides which tools to call, in what order, and when to stop. That's the evolution from RAG to Agents."</div>
+    </div>
+  </div>
+
+  <!-- CONCEPT 4 -->
+  <div class="divider"></div>
+  <div class="section-label">🧠 Concept 4</div>
+  <h2><div class="icon" style="background:rgba(245,158,11,0.1)">🕸️</div> What is LangGraph?</h2>
+
+  <div class="concept-block warn">
+    <div class="concept-title">Airport Operations System for AI</div>
+
+    <div class="scenario">
+      <div class="scenario-label">🌍 Real World Scenario</div>
+      <p>An airport has <strong style="color:#e2e8f0">Air Traffic Control</strong> coordinating Gate Team, Fuel Team, Baggage Team — all sharing the same flight data. LangGraph is exactly this for your agents.</p>
+    </div>
+
+    <div class="flow" style="margin-top:18px">
+               <span class="node">[User Request]</span>
+                       ↓
+          <span class="node">[Orchestrator Agent]</span>   <span class="comment">← decides who to call</span>
+             ↙               ↘
+    <span class="label">[Price Agent]</span>      <span class="label">[News Agent]</span>
+             ↘               ↙
+          <span class="node">[Analyst Agent]</span>
+                       ↓
+           <span class="label">[Report Agent]</span>
+                       ↓
+               <span class="cs">[Final Answer]</span>
+    </div>
+
+    <p style="font-size:14px;color:#94a3b8;margin:16px 0 8px">Each <strong style="color:#00d4ff">box = Node</strong> | Each <strong style="color:#00d4ff">arrow = Edge</strong> | Shared flight data = <strong style="color:#00d4ff">State</strong></p>
+
+    <table class="compare-table">
+      <tr><th>Framework</th><th>Best For</th><th>Why We Chose LangGraph</th></tr>
+      <tr><td>LangGraph</td><td>Complex production systems</td><td>✅ Full control, stateful, loops</td></tr>
+      <tr><td>CrewAI</td><td>Simple role-based agents</td><td>❌ Less control</td></tr>
+      <tr><td>AutoGen</td><td>Research conversations</td><td>❌ Hard to productionize</td></tr>
+    </table>
+  </div>
+
+  <!-- BONUS CONCEPT: TEMPERATURE -->
+  <div class="divider"></div>
+  <div class="section-label">🧠 Bonus Concept (From Your Question)</div>
+  <h2><div class="icon" style="background:rgba(239,68,68,0.1)">🌡️</div> Temperature & Why LLM Answers Vary</h2>
+
+  <div class="concept-block" style="border-left-color: #ef4444">
+    <div class="concept-title">Why doesn't the LLM always give the same answer?</div>
+    <div class="concept-subtitle">This is a fundamental concept every AI Engineer must know</div>
+
+    <div class="scenario">
+      <div class="scenario-label">🌍 Real World Scenario</div>
+      <p>Ask 10 different stock analysts <em>"Top 3 factors?"</em> — each gives slightly different answers based on their experience and perspective. Temperature controls <strong style="color:#e2e8f0">how different</strong> those answers are.</p>
+    </div>
+
+    <div class="temperature-viz">
+      <div class="temp-block"><div class="temp-val">0.0</div><div class="temp-label">Deterministic</div><div class="temp-desc">Always same answer</div></div>
+      <div class="temp-block"><div class="temp-val">0.5</div><div class="temp-label">Balanced</div><div class="temp-desc">Slight variation</div></div>
+      <div class="temp-block"><div class="temp-val">1.0</div><div class="temp-label">Creative</div><div class="temp-desc">More variation</div></div>
+      <div class="temp-block"><div class="temp-val">2.0</div><div class="temp-label">Chaotic</div><div class="temp-desc">Often nonsensical</div></div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-lang">python</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+      <pre><span class="cm"># Same question, completely different answers based on prompt framing</span>
+
+<span class="cm"># General top 3</span>
+llm.invoke(<span class="cs">"What are the top 3 factors to analyze before buying a stock?"</span>)
+
+<span class="cm"># Technical analysis focused</span>
+llm.invoke(<span class="cs">"What are the top 3 TECHNICAL INDICATORS before buying a stock?"</span>)
+
+<span class="cm"># Fundamental analysis focused</span>
+llm.invoke(<span class="cs">"What are the top 3 FUNDAMENTAL metrics a value investor checks?"</span>)
+
+<span class="cm"># In your project — you give REAL DATA, not vague questions</span>
+prompt = <span class="cs">f"""You are a senior stock analyst.
+Given: Price={price}, RSI={rsi}, Sentiment={sentiment}
+Give a Buy/Hold/Sell recommendation with exactly 3 reasons."""</span></pre>
+    </div>
+
+    <div class="callout success">
+      <div class="callout-icon">✅</div>
+      <div>In your project, you won't rely on the LLM's training knowledge. You'll feed it <strong>real data from your tools</strong> — so it reasons over facts, not guesses. This is why agents beat simple prompting.</div>
+    </div>
+  </div>
+
+  <!-- SETUP -->
+  <div class="divider"></div>
+  <div class="section-label">💻 Hands-On</div>
+  <h2><div class="icon" style="background:rgba(16,185,129,0.1)">⚙️</div> Environment Setup — Step by Step</h2>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+      <div class="step-title">Create Project Folder</div>
+      <div class="step-desc">Creates the folder and enters it. Like creating a new drawer and opening it.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">bash</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre>mkdir stock-market-agent    <span class="cm"># creates new folder</span>
+cd stock-market-agent       <span class="cm"># enter that folder (cd = change directory)</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+      <div class="step-title">Create Virtual Environment</div>
+      <div class="step-desc">Isolates this project's packages from all other Python projects. Prevents version conflicts.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">bash</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre>python -m venv venv    <span class="cm"># -m runs the venv module | last "venv" = folder name</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+      <div class="step-title">Activate Virtual Environment</div>
+      <div class="step-desc">After activation, you'll see <code style="color:#00d4ff">(venv)</code> prefix in terminal. That means you're inside the isolated box.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">bash</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre><span class="cm"># Windows:</span>
+venv\Scripts\activate
+
+<span class="cm"># Mac/Linux:</span>
+source venv/bin/activate
+
+<span class="cm"># You'll see this after activation:</span>
+<span class="cs">(venv) C:\Users\Mugundhan\stock-market-agent></span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-content">
+      <div class="step-title">Install All Packages</div>
+      <div class="step-desc">Installs everything in one command. Each package has a specific role:</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">bash</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre>pip install langchain langgraph langchain-groq tavily-python yfinance fastapi uvicorn redis python-dotenv pandas numpy</pre>
+      </div>
+      <div class="pkg-grid">
+        <div class="pkg-card"><div class="pkg-name">langchain</div><div class="pkg-desc">Core framework for LLM apps — the foundation</div></div>
+        <div class="pkg-card"><div class="pkg-name">langgraph</div><div class="pkg-desc">Build multi-agent graphs — connects all agents</div></div>
+        <div class="pkg-card"><div class="pkg-name">langchain-groq</div><div class="pkg-desc">Adapter to connect LangChain → Groq API</div></div>
+        <div class="pkg-card"><div class="pkg-name">tavily-python</div><div class="pkg-desc">Web search tool — Google for your agent</div></div>
+        <div class="pkg-card"><div class="pkg-name">yfinance</div><div class="pkg-desc">Free Bloomberg terminal — real stock data</div></div>
+        <div class="pkg-card"><div class="pkg-name">fastapi</div><div class="pkg-desc">Build REST APIs — reception desk of your app</div></div>
+        <div class="pkg-card"><div class="pkg-name">uvicorn</div><div class="pkg-desc">Runs FastAPI — the engine powering reception</div></div>
+        <div class="pkg-card"><div class="pkg-name">redis</div><div class="pkg-desc">Agent memory store — sticky notepad</div></div>
+        <div class="pkg-card"><div class="pkg-name">python-dotenv</div><div class="pkg-desc">Loads .env API keys safely</div></div>
+        <div class="pkg-card"><div class="pkg-name">pandas / numpy</div><div class="pkg-desc">Data manipulation + numerical calculations</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-content">
+      <div class="step-title">Create Folder Structure + __init__.py</div>
+      <div class="step-desc"><code style="color:#00d4ff">__init__.py</code> tells Python "this folder is a package you can import from" — like a registration form.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">bash</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre>mkdir agents tools memory api core notes
+touch agents/__init__.py tools/__init__.py memory/__init__.py api/__init__.py core/__init__.py</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-content">
+      <div class="step-title">Create .env + .gitignore</div>
+      <div class="step-desc">Never hardcode API keys. If pushed to GitHub, bots scrape them within minutes.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">.env</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre>GROQ_API_KEY=gsk_your_actual_key_here
+TAVILY_API_KEY=tvly_your_actual_key_here
+REDIS_URL=redis://localhost:6379</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">.gitignore</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre>.env
+__pycache__/
+*.pyc
+venv/
+*.pkl
+.vscode/</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">7</div>
+    <div class="step-content">
+      <div class="step-title">core/config.py — Central Configuration</div>
+      <div class="step-desc">Define API keys once here. Every other file imports from this — single source of truth.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">python — core/config.py</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre><span class="ck">import</span> os                      <span class="cm"># lets Python talk to your OS</span>
+<span class="ck">from</span> dotenv <span class="ck">import</span> load_dotenv  <span class="cm"># reads .env file</span>
+
+load_dotenv()  <span class="cm"># MUST call this — without it, os.getenv returns None</span>
+
+<span class="ck">class</span> <span class="cf">Config</span>:
+    <span class="cm"># os.getenv("KEY") reads value from your .env file</span>
+    GROQ_API_KEY   = os.getenv(<span class="cs">"GROQ_API_KEY"</span>)
+    TAVILY_API_KEY = os.getenv(<span class="cs">"TAVILY_API_KEY"</span>)
+    REDIS_URL      = os.getenv(<span class="cs">"REDIS_URL"</span>, <span class="cs">"redis://localhost:6379"</span>)
+    <span class="cm"># "redis://localhost:6379" = DEFAULT if not in .env</span>
+
+    MODEL_NAME  = <span class="cs">"llama-3.1-8b-instant"</span>  <span class="cm"># exact Groq model name</span>
+    MAX_TOKENS  = <span class="cn">1024</span>                    <span class="cm"># max words LLM returns</span>
+
+config = <span class="cf">Config</span>()  <span class="cm"># one instance — import this everywhere</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">8</div>
+    <div class="step-content">
+      <div class="step-title">Your First LLM Call — agents/simple_test.py</div>
+      <div class="step-desc">Tests that your Groq connection works. If you see a response, everything is set up correctly.</div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">python — agents/simple_test.py</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre><span class="ck">from</span> langchain_groq <span class="ck">import</span> ChatGroq  <span class="cm"># LangChain's wrapper for Groq API</span>
+<span class="ck">from</span> core.config <span class="ck">import</span> config       <span class="cm"># our config object</span>
+
+<span class="cm"># Creates connection to Groq servers using your API key</span>
+llm = <span class="cf">ChatGroq</span>(
+    api_key    = config.GROQ_API_KEY,   <span class="cm"># authentication</span>
+    model_name = config.MODEL_NAME      <span class="cm"># which model to use</span>
+)
+
+<span class="cm"># .invoke() = sends message + waits for response (like hitting send)</span>
+response = llm.invoke(<span class="cs">"What are the top 3 factors to analyze before buying a stock?"</span>)
+
+<span class="cm"># response is an object — .content gives the actual text</span>
+<span class="cf">print</span>(response.content)</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-lang">bash — run it</div><div class="code-dots"><span style="background:#ef4444"></span><span style="background:#f59e0b"></span><span style="background:#10b981"></span></div></div>
+        <pre>python agents/simple_test.py</pre>
+      </div>
+      <div class="callout success">
+        <div class="callout-icon">✅</div>
+        <div>If you see a response about stock analysis factors → <strong>LLM connection works perfectly!</strong> If you get an error → double-check your .env file and API key.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YOUTUBE -->
+  <div class="divider"></div>
+  <div class="section-label">🔗 References</div>
+  <h2><div class="icon" style="background:rgba(239,68,68,0.1)">▶️</div> YouTube References</h2>
+
+  <div class="yt-list">
+    <a href="https://www.youtube.com/watch?v=F8NKVhkZZWI" target="_blank" class="yt-link">
+      <div class="yt-icon">▶</div>
+      <div><div class="yt-title">AI Agents Explained Simply</div><div class="yt-url">youtube.com/watch?v=F8NKVhkZZWI</div></div>
+    </a>
+    <a href="https://www.youtube.com/watch?v=Eug2clsLtFs" target="_blank" class="yt-link">
+      <div class="yt-icon">▶</div>
+      <div><div class="yt-title">ReAct Pattern Deep Dive</div><div class="yt-url">youtube.com/watch?v=Eug2clsLtFs</div></div>
+    </a>
+    <a href="https://www.youtube.com/watch?v=pbAd8O1Lvm4" target="_blank" class="yt-link">
+      <div class="yt-icon">▶</div>
+      <div><div class="yt-title">LangGraph Intro (Official)</div><div class="yt-url">youtube.com/watch?v=pbAd8O1Lvm4</div></div>
+    </a>
+  </div>
+
+  <!-- INTERVIEW QA -->
+  <div class="divider"></div>
+  <div class="interview-section">
+    <h2 style="color:#a78bfa"><div class="icon" style="background:rgba(124,58,237,0.15)">❓</div> Interview Questions & Answers</h2>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q1</span> What is an AI Agent and how is it different from a regular LLM?</div>
+      <div class="answer">A regular LLM takes input and generates text from training data — it can't access real-time info or take actions. An <strong>AI Agent wraps an LLM with tools, memory, and a reasoning loop.</strong> It can call external APIs, observe results, and decide next steps dynamically — like a human analyst using tools to research before answering.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q2</span> Explain the ReAct pattern with an example from your project.</div>
+      <div class="answer">ReAct = <strong>Reasoning + Acting.</strong> The agent loops: Thought → Action → Observation until it has enough to answer. In my stock agent: Thought → "need AAPL price" → Action → call yFinance → Observe → price=$189.3 → Thought → "now need news" → Action → call Tavily → and so on until it can generate the final recommendation.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q3</span> What's the difference between a LangChain chain and an agent?</div>
+      <div class="answer">A chain has a <strong>fixed predetermined flow</strong> — like an assembly line, input always goes through the same steps in order. An agent is <strong>dynamic — the LLM decides</strong> which tools to call, in what order, and when to stop. My RAG project was a chain. This stock market project is an agent — that's the evolution.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q4</span> Why did you choose LangGraph for multi-agent orchestration?</div>
+      <div class="answer">LangGraph models agents as a graph — nodes are agents/functions, edges are transitions. It supports <strong>shared state, conditional routing, and loops</strong> — essential for complex multi-agent coordination. Compared to CrewAI it gives production-level control; compared to AutoGen it's easier to deploy as a real API.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q5</span> Why should API keys never be hardcoded in code?</div>
+      <div class="answer">Hardcoded keys pushed to GitHub become publicly visible — <strong>bots scrape them within minutes,</strong> leading to unauthorized usage and potentially large bills. Storing keys in a <strong>.env file + .gitignore</strong> ensures secrets never leave your local machine. This is professional standard practice — interviewers check for this.</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="question"><span class="q-badge">Q6</span> Why does the LLM give different answers to the same question?</div>
+      <div class="answer">Because of <strong>Temperature</strong> — a parameter controlling randomness. At 0.0 it's deterministic (same answer always). At 1.0 it's creative and varied. Default is ~0.7. Also, the LLM doesn't have a "fixed answer list" — it predicts the most probable next token based on patterns from training data. <strong>Prompt engineering matters</strong> — "top 3 technical indicators" vs "top 3 fundamental metrics" gives completely different answers from the same model.</div>
+    </div>
+  </div>
+
+  <!-- KEY TAKEAWAYS -->
+  <div class="section-label">💡 Key Takeaways</div>
+  <h2 style="margin-bottom:20px"><div class="icon" style="background:rgba(245,158,11,0.1)">🏆</div> What You Learned Today</h2>
+
+  <div class="takeaway-grid">
+    <div class="takeaway-card">
+      <div class="takeaway-icon">🤖</div>
+      <div class="takeaway-title">Agent = LLM + Tools + Loop</div>
+      <div class="takeaway-desc">Not just text generation — agents take real actions with real data</div>
+    </div>
+    <div class="takeaway-card">
+      <div class="takeaway-icon">🔄</div>
+      <div class="takeaway-title">ReAct is the Core</div>
+      <div class="takeaway-desc">Every major framework uses Thought → Action → Observe under the hood</div>
+    </div>
+    <div class="takeaway-card">
+      <div class="takeaway-icon">⛓️</div>
+      <div class="takeaway-title">RAG → Agent Evolution</div>
+      <div class="takeaway-desc">You grew from fixed chains to dynamic agent systems — that's your story</div>
+    </div>
+    <div class="takeaway-card">
+      <div class="takeaway-icon">🌡️</div>
+      <div class="takeaway-title">Temperature Controls Randomness</div>
+      <div class="takeaway-desc">LLMs predict tokens probabilistically — prompts guide, temperature varies</div>
+    </div>
+    <div class="takeaway-card">
+      <div class="takeaway-icon">🔒</div>
+      <div class="takeaway-title">.env = Non-negotiable</div>
+      <div class="takeaway-desc">Never hardcode secrets. Recruiters check your GitHub for this</div>
+    </div>
+    <div class="takeaway-card">
+      <div class="takeaway-icon">🕸️</div>
+      <div class="takeaway-title">LangGraph = Control</div>
+      <div class="takeaway-desc">Graph-based agents with shared state — production ready, interview-worthy</div>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div class="divider"></div>
+  <div class="section-label">✅ Day 1 Checklist</div>
+  <h2 style="margin-bottom:20px"><div class="icon" style="background:rgba(16,185,129,0.1)">📋</div> Before Moving to Day 2</h2>
+
+  <div class="checklist">
+    <label class="check-item"><input type="checkbox" class="checkbox"> Understood AI Agent concept with real world analogy</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Understood ReAct — Thought → Action → Observe loop</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Know Chain vs Agent difference (can explain in interview)</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Understand what LangGraph is and why we chose it</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Understand Temperature and why LLM answers vary</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Project folder created</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Virtual environment created and activated (see venv prefix)</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> All packages installed successfully</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Folder structure created (agents/ tools/ memory/ api/ core/ notes/)</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> __init__.py created in all folders</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Groq API key obtained from console.groq.com</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> Tavily API key obtained from tavily.com</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> .env file created with both keys</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> .gitignore created</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> core/config.py created and understood line by line</label>
+    <label class="check-item"><input type="checkbox" class="checkbox"> simple_test.py ran successfully — LLM responding ✅</label>
+  </div>
+
+  <footer>
+    <div>Multi-Agent Stock Market System · <span>Day 1 of 30</span></div>
+    <div style="margin-top:6px;font-size:12px">Next → Day 2: LangGraph Deep Dive + Building Your First Node</div>
+  </footer>
+
+</div>
+</body>
+</html>

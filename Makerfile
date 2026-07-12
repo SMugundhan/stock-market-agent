@@ -1,0 +1,39 @@
+# Makefile
+# A Makefile lets you create shorthand commands
+# Instead of typing long pytest commands, just type: make test
+
+.PHONY: test test-unit test-integration lint docker-build
+
+test-unit:
+	pytest tests/ --ignore=tests/test_api.py -m "not slow" -v
+
+test-integration:
+	pytest tests/test_api.py -v
+
+test:
+	pytest tests/ -v --tb=short
+
+coverage:
+	pytest tests/ --cov=agents --cov=api --cov=core \
+		--cov-report=term-missing \
+		--ignore=tests/test_api.py
+
+lint:
+	pip install flake8
+	flake8 agents/ api/ core/ --max-line-length=100 \
+		--exclude=__pycache__
+
+docker-build:
+	docker build -t stock-agent .
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
+
+clean:
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; true
+	find . -type f -name "*.pyc" -delete 2>/dev/null; true
+
+# Now you can just type make test instead of the full pytest command. The CI workflow could also use make test for consistency.
