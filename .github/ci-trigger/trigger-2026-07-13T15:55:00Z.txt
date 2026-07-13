@@ -1,0 +1,6 @@
+Triggered CI run
+
+This file was created to trigger the repository's CI workflow.
+
+Timestamp: 2026-07-13T15:55:00Z
+Triggered by: GitHub Copilot via create_or_update_file
