@@ -5,103 +5,54 @@ name: CI — Test Suite
 on:
   push:
     branches: [main, develop]
-    # Run on pushes to main AND develop branches
-    # 'develop' is where you do active work before merging to main
-
   pull_request:
     branches: [main]
-    # Run on Pull Requests targeting main
-    # This checks the PR BEFORE it's merged
-
   workflow_dispatch:
-    # Allows you to manually trigger this workflow from the
-    # GitHub UI — useful for debugging or manual verification
 
 jobs:
-  # ══════════════════════════════════════════════════════
-  # JOB 1: Run all tests
-  # ══════════════════════════════════════════════════════
   test:
     name: Run Test Suite
     runs-on: ubuntu-latest
-    # Fresh Ubuntu Linux VM — clean environment every run
-
     strategy:
       matrix:
         python-version: ["3.11"]
-        # matrix = run this job for each value in the list
-        # Currently just 3.11, but you could add "3.10", "3.12"
-        # to test compatibility across Python versions
 
     steps:
-      # ── Step 1: Get the code ──────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
-        # This is GitHub's official "clone your repo" action
-        # Without this, the runner has NO code to work with
-        # Every workflow starts with this step
 
-      # ── Step 2: Set up Python ─────────────────────────
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          # ${{ matrix.python-version }} = reads from the matrix above
-          # = "3.11" in this case
 
-      # ── Step 3: Cache pip dependencies ───────────────
       - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          # Cache the pip download cache directory
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          # Cache KEY = OS + hash of requirements.txt
-          # If requirements.txt hasn't changed → use cached packages
-          # If requirements.txt changes → cache is invalidated, fresh install
-          # This makes subsequent runs 2-3x faster
 
-      # ── Step 4: Install dependencies ─────────────────
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-asyncio httpx pytest-mock pytest-cov
-          # | = multi-line run command
-          # python -m pip install --upgrade pip = always use latest pip
-          # The testing packages aren't in requirements.txt
-          # (they're dev-only) so we install them separately
 
-      # ── Step 5: Create required directories ──────────
       - name: Create required directories
-        run: |
-          mkdir -p logs
-          # logs/ directory must exist for the file handler in logger.py
-          # It doesn't exist in the repo (gitignored) so we create it
+        run: mkdir -p logs
 
-      # ── Step 6: Run unit tests ────────────────────────
       - name: Run unit tests
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           REDIS_URL: redis://localhost:6379
           APP_VERSION: "test-ci"
-          # env: block injects these as environment variables
-          # ${{ secrets.X }} reads from GitHub repository secrets
-          # Even though unit tests mock these APIs, the env vars
-          # prevent import-time errors in modules that read them
         run: |
           pytest tests/ -v \
             --ignore=tests/test_api.py \
             -m "not slow" \
             --tb=short
-          # -v = verbose (show each test name)
-          # --ignore = skip API tests for now (need Redis)
-          # -m "not slow" = skip tests marked @pytest.mark.slow
-          # --tb=short = show short traceback on failures
-          # \ = line continuation in bash
 
-      # ── Step 7: Generate coverage report ──────────────
       - name: Generate coverage report
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -117,23 +68,14 @@ jobs:
             --cov=core \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml
-          # --cov=agents = measure coverage for agents/ folder
-          # --cov-report=xml = save XML report for next step
 
-      # ── Step 8: Upload coverage to Codecov ───────────
       - name: Upload coverage report
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.xml
           fail_ci_if_error: false
-          # fail_ci_if_error: false = don't fail CI if Codecov upload fails
-          # Coverage upload is "nice to have" not mission critical
         continue-on-error: true
-        # continue-on-error = even if this step fails, keep going
 
-  # ══════════════════════════════════════════════════════
-  # JOB 2: Test with Redis (integration tests)
-  # ══════════════════════════════════════════════════════
   integration-test:
     name: Integration Tests with Redis
     runs-on: ubuntu-latest
@@ -169,15 +111,16 @@ jobs:
       - name: Create required directories
         run: mkdir -p logs
 
+      - name: Install redis-cli
+        run: sudo apt-get update && sudo apt-get install -y redis-tools
+
       - name: Wait for Redis to be ready
         run: |
-          for i in {1..10}; do
+          for i in {1..20}; do
             redis-cli -h localhost ping && break
             echo "Waiting for Redis... attempt $i"
             sleep 2
           done
-        # Extra safety — manually wait for Redis before tests run
-        # Even with healthcheck, sometimes it needs a moment
 
       - name: Run API tests
         env:
@@ -188,15 +131,10 @@ jobs:
         run: |
           pytest tests/test_api.py -v --tb=short
 
-  # ══════════════════════════════════════════════════════
-  # JOB 3: Build Docker image (verify it builds)
-  # ══════════════════════════════════════════════════════
   docker-build:
     name: Verify Docker Build
     runs-on: ubuntu-latest
     needs: [test, integration-test]
-    # Only build Docker if BOTH test jobs passed
-    # No point building a broken image
 
     steps:
       - name: Checkout repository
@@ -204,19 +142,12 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        # Buildx = extended Docker build with better caching
-        # and multi-platform support
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: false
-          # push: false = BUILD the image but DON'T push to Docker Hub
-          # We're just verifying the Dockerfile is valid
-          # In a full CD pipeline you'd set push: true
           tags: stock-agent:ci-test
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # GitHub Actions cache for Docker layers
-          # Makes Docker builds faster on subsequent runs
