@@ -138,24 +138,13 @@ jobs:
     name: Integration Tests with Redis
     runs-on: ubuntu-latest
     needs: test
-    # needs: test = this job ONLY runs if the 'test' job PASSED
-    # If unit tests fail, no point running integration tests
 
     services:
       redis:
         image: redis:7-alpine
-        # GitHub Actions can spin up SERVICE CONTAINERS
-        # These run alongside your job — like docker compose
-        # Your tests can connect to Redis at localhost:6379
         ports:
           - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 3
-          # Wait until Redis is healthy before running tests
-          # Same pattern as our docker-compose healthcheck
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -180,6 +169,16 @@ jobs:
       - name: Create required directories
         run: mkdir -p logs
 
+      - name: Wait for Redis to be ready
+        run: |
+          for i in {1..10}; do
+            redis-cli -h localhost ping && break
+            echo "Waiting for Redis... attempt $i"
+            sleep 2
+          done
+        # Extra safety — manually wait for Redis before tests run
+        # Even with healthcheck, sometimes it needs a moment
+
       - name: Run API tests
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -188,7 +187,6 @@ jobs:
           APP_VERSION: "test-ci"
         run: |
           pytest tests/test_api.py -v --tb=short
-          # Now Redis is available, so API tests can run
 
   # ══════════════════════════════════════════════════════
   # JOB 3: Build Docker image (verify it builds)
