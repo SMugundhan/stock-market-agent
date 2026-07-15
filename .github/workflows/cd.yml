@@ -1,22 +1,24 @@
 # .github/workflows/cd.yml
 # CD workflow — runs only after CI passes
-
 name: CD — Build, Push & Deploy
 
 on:
   workflow_run:
     workflows: ["CI — Test Suite"]
     types: [completed]
-  workflow_dispatch: # optional manual trigger
+  workflow_dispatch:
 
 jobs:
-  # ══════════════════════════════════════════════════
-  # JOB 1: Build Docker image and push to Docker Hub
-  # ══════════════════════════════════════════════════
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Only proceed if triggered by a successful CI run on main,
+    # OR if manually dispatched
+    if: >
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main') ||
+      github.event_name == 'workflow_dispatch'
 
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
