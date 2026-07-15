@@ -1,9 +1,10 @@
 # .github/workflows/cd.yml
+# CD workflow — runs only after CI passes
 name: CD — Build, Push & Deploy
 
 on:
   workflow_run:
-    workflows: ["CI - Test Suite"] # make sure CI.yml uses the same name
+    workflows: ["CI — Test Suite"]
     types: [completed]
   workflow_dispatch:
 
@@ -11,6 +12,8 @@ jobs:
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
+    # Only proceed if triggered by a successful CI run on main,
+    # OR if manually dispatched
     if: >
       (github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
@@ -25,21 +28,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── Load environment variables from .env ───────
-      - name: Load .env file
-        run: |
-          echo "Loading environment variables from .env"
-          set -a
-          source .env
-          set +a
-
       # ── Guard: Ensure CI passed ────────────────────
       - name: Ensure CI passed
+
         env:
           GH_TOKEN: ${{ github.token }}
+
         run: |
           echo "Checking latest CI run status..."
-          CI_STATUS=$(gh run list --workflow "CI - Test Suite" --branch main --json conclusion -q '.[0].conclusion')
+          CI_STATUS=$(gh run list --workflow "CI — Test Suite" --branch main --json conclusion -q '.[0].conclusion')
           echo "Latest CI status: $CI_STATUS"
           if [ "$CI_STATUS" != "success" ]; then
             echo "❌ CI has not passed yet. Exiting CD."
@@ -50,9 +47,9 @@ jobs:
       - name: Read version
         id: version
         run: |
-          VERSION=$(cat VERSION | tr -d '\n' | tr -d '"')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
+          type=raw,value=${{ steps.version.outputs.version }}
+          type=raw,value=latest
+          type=sha,prefix=sha-,format=short
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -93,6 +90,9 @@ jobs:
           echo "✅ Image successfully pushed and pullable"
           docker inspect ${{ secrets.DOCKERHUB_USERNAME }}/stock-market-agent:latest | grep -i "created"
 
+  # ══════════════════════════════════════════════════
+  # JOB 2: Deploy to Render.com
+  # ══════════════════════════════════════════════════
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
@@ -105,14 +105,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      # ── Load environment variables from .env ───────
-      - name: Load .env file
-        run: |
-          echo "Loading environment variables from .env"
-          set -a
-          source .env
-          set +a
 
       - name: Trigger Render deployment
         run: curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
