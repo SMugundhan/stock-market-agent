@@ -76,8 +76,8 @@ jobs:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/stock-market-agent
           # Your image name: mugundhan/stock-market-agent
           tags: |
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=latest
+            type=raw,value="${{ steps.version.outputs.version }}"
+            type=raw,value="latest"
             type=sha,prefix=sha-,format=short
           # This generates 3 tags for your image:
           # mugundhan/stock-market-agent:1.0.0     ← version tag
