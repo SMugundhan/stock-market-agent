@@ -8,8 +8,19 @@ async def run_sync_in_thread ( func, *args, **kwargs ) :
     Runs a synchronous (blocking) function inside a thread pool,
     so it doesn't block the asyncio event loop.
 
-    This is the bridge between sync libraries (yfinance, tavily)
-    and our async agent functions.
+    USE THIS FOR:
+        - yfinance calls (no async version exists)
+        - tavily-python SDK calls (no async version)
+        - Any other sync-only library
+
+    DO NOT USE FOR:
+        - LangChain LLM calls → use llm.ainvoke() instead (true async)
+        - httpx calls → use async with httpx.AsyncClient() instead
+        - Redis calls → redis-py has aioredis for true async
+
+    The difference:
+        Thread pool: offloads blocking wait to an OS thread (costs RAM)
+        True async:  OS kernel watches the connection (costs almost nothing)
     """
         
         loop = asyncio . get_event_loop ()

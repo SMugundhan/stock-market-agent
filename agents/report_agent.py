@@ -6,11 +6,11 @@ from langchain_groq import ChatGroq
 
 from core.state import StockAnalysisState
 
-from core.config import Config
+from core.config import config
 
-llm = ChatGroq ( api_key = Config. GROQ_API_KEY, model_name = Config. MODEL_NAME )
+llm = ChatGroq ( api_key = config. GROQ_API_KEY, model_name = config. MODEL_NAME )
 
-def  report_agent_node ( state : StockAnalysisState ) -> dict:
+async def  report_agent_node ( state : StockAnalysisState ) -> dict:
 
     """
     Report Agent Node — the final step.
@@ -55,7 +55,7 @@ Requirements:
 - End with the final recommendation and confidence level
 - Max 3 sentences, no bullet points"""
         
-        summary_response = llm. invoke ( summary_report )
+        summary_response = await llm. ainvoke ( summary_report )
 
         executive_summary = summary_response. content. strip()
 

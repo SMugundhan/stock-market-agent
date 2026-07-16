@@ -10,11 +10,18 @@ def get_version ( ) -> str :
 
         with open ( "VERSION", "r" ) as f :
 
-            return f.read().strip()
+            version = f.read().strip()
+
+            if version :
+
+                return version
         
     except FileNotFoundError :
 
-        return os . getenv ( "APP_VERSION", "0.1.0" )
+        pass
+        # File doesn't exist → fall through to env var
+
+    return os . getenv ( "APP_VERSION", "0.0.0" )
 
 
 class Config:
@@ -30,6 +37,6 @@ class Config:
 
     MAX_TOKENS = 1024 # this is the maximum number of tokens that the model will generate in response to a prompt, setting a limit on the length of the generated output to prevent excessively long responses and manage resource usage effectively.
 
-    APP_VERSION = "1.0.0"
+    APP_VERSION = get_version()
 
 config = Config() # create an instance of the Config class to access the configuration settings throughout the application

@@ -10,13 +10,13 @@ from langchain_groq import ChatGroq
 
 from core.state import StockAnalysisState
 
-from core.config import Config
+from core.config import config
 
 from difflib import get_close_matches
 # difflib is python's inbuild fuzzy matching library
 # get_close_matches fins strings similar to a given string
 
-llm = ChatGroq ( api_key = Config.GROQ_API_KEY, model_name = Config.MODEL_NAME )
+llm = ChatGroq ( api_key = config.GROQ_API_KEY, model_name = config.MODEL_NAME )
 
 # Common name -> Ticker mappping for popular stocks
 

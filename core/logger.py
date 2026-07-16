@@ -8,7 +8,7 @@ import sys
 
 from datetime import datetime, timezone
 
-from core . config import Config
+from core . config import config
 
 class StructuredFormatter ( logging . Formatter ) :
 
@@ -50,7 +50,7 @@ class StructuredFormatter ( logging . Formatter ) :
             "line" : record . lineno,
             # line number = which line in the file generated this log record
 
-            "version" : Config . APP_VERSION
+            "version" : config . APP_VERSION
             }
         
         # adding extra fields attached to this log record

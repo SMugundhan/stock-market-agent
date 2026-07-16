@@ -46,9 +46,22 @@ EXPOSE 8000
 
 # ── Start command ─────────────────────────────────────
 CMD ["uvicorn", "api.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "1"]
+    "--host", "0.0.0.0", \
+    "--port", "8000", \
+    "--workers", "1"]
 # workers=1 for now — we'll scale in Docker Compose
 # --host 0.0.0.0 = listen on ALL network interfaces
 # Without this: only accessible from inside the container itself
+
+# Dockerfile — accept the build arg
+ARG APP_VERSION=0.0.0
+# ARG = build-time variable (not available at runtime)
+# Default 0.0.0 if not passed during docker build
+
+ENV APP_VERSION=$APP_VERSION
+# Copy ARG into ENV so it's available at runtime too
+# Now os.getenv("APP_VERSION") works inside the container
+
+COPY VERSION .
+# Also copy the VERSION file itself
+# So config.py's file reading also works

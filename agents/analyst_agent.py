@@ -2,16 +2,16 @@ from langchain_groq import ChatGroq   # ChatGroq is LangChain's wrapper for Groq
 
 from core.state import StockAnalysisState #import our shared state definition
 
-from core.config import Config
+from core.config import config
 
 # initilaize the LLM
 
-llm = ChatGroq ( api_key = Config.GROQ_API_KEY , model_name = Config.MODEL_NAME )
+llm = ChatGroq ( api_key = config.GROQ_API_KEY , model_name = config.MODEL_NAME )
 
-def analyst_agent_node ( state: StockAnalysisState ) -> dict :
+async def analyst_agent_node ( state: StockAnalysisState ) -> dict :
 
     """
-    Analyst agent node. 
+    Analyst agent node.
     Reads : current_price, price_change_pct, rsi, news_headlines, sentiment_score, volatility, risk_level
     Writes : recommendation, confidence, reasoning
     """
@@ -63,7 +63,7 @@ def analyst_agent_node ( state: StockAnalysisState ) -> dict :
 
         # Step 2 : Call the LLM
 
-        response = llm . invoke ( prompt )
+        response = await llm . ainvoke ( prompt )
 
         raw_text = response.content
 

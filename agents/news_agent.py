@@ -4,7 +4,7 @@ from langchain_groq import ChatGroq
 
 from core.state import StockAnalysisState
 
-from core.config import Config
+from core.config import config
 
 from core . async_utils import run_sync_in_thread
 
@@ -12,9 +12,9 @@ from core . async_utils import run_sync_in_thread
 
 # Initialization
 
-tavily_client = TavilyClient ( api_key = Config.TAVILY_API_KEY )
+tavily_client = TavilyClient ( api_key = config.TAVILY_API_KEY )
 
-llm = ChatGroq ( api_key = Config.GROQ_API_KEY , model_name = Config.MODEL_NAME )
+llm = ChatGroq ( api_key = config.GROQ_API_KEY , model_name = config.MODEL_NAME )
 
 
 
@@ -102,7 +102,7 @@ async def news_agent_node ( state : StockAnalysisState ) -> dict :
         # Call LLM
         # LLm invoke is also sync call under the hood so wrap the same way
 
-        response = await run_sync_in_thread ( llm . invoke, sentiment_prompt )
+        response = await llm . ainvoke ( sentiment_prompt )
 
         raw = response . content . strip ()
 

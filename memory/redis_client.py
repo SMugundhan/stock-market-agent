@@ -2,10 +2,10 @@ import redis
 
 import json
 
-from core.config import Config
+from core.config import config
 
 # Creating a redis connection
-redis_client = redis. from_url ( Config. REDIS_URL, decode_responses = True ) # decode_response returns strings instead of bytes
+redis_client = redis. from_url ( config. REDIS_URL, decode_responses = True ) # decode_response returns strings instead of bytes
 # Eg: AAPL -> b'AAPL' bytes
 
 

@@ -64,9 +64,9 @@ def get_stock_news ( ticker : str ) -> str:
 
     from langchain_groq import ChatGroq
 
-    from core . config import Config
+    from core . config import config
 
-    tavily = TavilyClient ( api_key = Config . TAVILY_API_KEY )
+    tavily = TavilyClient ( api_key = config . TAVILY_API_KEY )
 
     results = tavily . search ( query = f" { ticker } stock news today ", max_results = 5 )
 
@@ -74,7 +74,7 @@ def get_stock_news ( ticker : str ) -> str:
 
     headlines = [ a . get ( "title" ) for a in articles if a . get ( "title" ) ]
 
-    llm = ChatGroq ( api_key = Config . GROQ_API_KEY, model_name = Config . MODEL_NAME )
+    llm = ChatGroq ( api_key = config . GROQ_API_KEY, model_name = config . MODEL_NAME )
 
     news_text = "\n" . join ( [ f" { a . get ( 'title', '' ) } : { a . get ( 'content', '' )  [ :150 ] }"  for a in articles ] )
 
