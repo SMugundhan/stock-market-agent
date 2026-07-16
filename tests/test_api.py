@@ -13,7 +13,18 @@ from fastapi.testclient import TestClient
 
 from api.main import app, get_graph
 
-client = TestClient(app)
+
+@pytest.fixture(scope="module")
+def client():
+    """
+    Module-scoped fixture using the context-manager form of TestClient.
+    This actually triggers FastAPI's lifespan startup/shutdown, so
+    app_state["graph"] gets built for real once per test module —
+    tests that don't register a dependency_overrides mock still get
+    a working (real) graph instead of a 503.
+    """
+    with TestClient(app) as c:
+        yield c
 
 
 @pytest.fixture(autouse=True)
@@ -30,18 +41,18 @@ def clear_overrides():
 class TestHealthEndpoint:
     """Health check tests — should always be fast and reliable"""
 
-    def test_health_returns_200(self):
+    def test_health_returns_200(self, client):
         """Health endpoint must return HTTP 200"""
         response = client.get("/health")
         assert response.status_code == 200
 
-    def test_health_response_has_status(self):
+    def test_health_response_has_status(self, client):
         """Response must have a 'status' field"""
         response = client.get("/health")
         data = response.json()
         assert "status" in data
 
-    def test_health_status_is_string(self):
+    def test_health_status_is_string(self, client):
         """Status field must be a string ('healthy' or 'degraded')"""
         response = client.get("/health")
         data = response.json()
@@ -83,7 +94,7 @@ class TestAnalyzeEndpoint:
     def _mock_graph_with(self, final_report, analysis_type="full", errors=None, ticker="AAPL"):
         """
         Helper: builds a MagicMock graph whose .ainvoke() returns a REAL dict
-        (not the {...} set bug) shaped like actual LangGraph final state.
+        (not a {...} set) shaped like actual LangGraph final state.
         """
         mock_graph = MagicMock()
         mock_graph.ainvoke = AsyncMock(return_value={
@@ -94,7 +105,7 @@ class TestAnalyzeEndpoint:
         })
         return mock_graph
 
-    def test_valid_ticker_returns_200(self):
+    def test_valid_ticker_returns_200(self, client):
         mock_graph = self._mock_graph_with(self.get_mock_report())
         app.dependency_overrides[get_graph] = lambda: mock_graph
 
@@ -102,7 +113,7 @@ class TestAnalyzeEndpoint:
 
         assert response.status_code == 200
 
-    def test_response_has_verdict(self):
+    def test_response_has_verdict(self, client):
         """Response must contain a verdict with recommendation"""
         mock_graph = self._mock_graph_with(self.get_mock_report())
         app.dependency_overrides[get_graph] = lambda: mock_graph
@@ -113,7 +124,7 @@ class TestAnalyzeEndpoint:
         assert "verdict" in data
         assert "recommendation" in data["verdict"]
 
-    def test_recommendation_is_valid_value(self):
+    def test_recommendation_is_valid_value(self, client):
         """Recommendation must be BUY, HOLD, or SELL"""
         mock_graph = self._mock_graph_with(self.get_mock_report())
         app.dependency_overrides[get_graph] = lambda: mock_graph
@@ -124,7 +135,7 @@ class TestAnalyzeEndpoint:
 
         assert rec in ["BUY", "HOLD", "SELL"]
 
-    def test_missing_ticker_returns_422(self):
+    def test_missing_ticker_returns_422(self, client):
         """Request without ticker field should return 422 Unprocessable"""
         response = client.post("/analyze", json={
             "query_type": "full"
@@ -134,7 +145,7 @@ class TestAnalyzeEndpoint:
         # FastAPI's Pydantic validation auto-returns 422 for missing
         # required fields — we don't need to write this logic ourselves
 
-    def test_error_state_returns_404(self):
+    def test_error_state_returns_404(self, client):
         """If orchestrator rejects the ticker, return 404"""
         mock_graph = self._mock_graph_with(
             final_report=None,
