@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from typing import Optional, List
 
-from core . config import Config
+from core . config import config
 
 # ── REQUEST MODELS ──────────────────────────────────────
 
@@ -67,7 +67,7 @@ class AnalysisResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     redis_connected: bool
-    version: str = Config . APP_VERSION
+    version: str = config . APP_VERSION
 
 
 class ErrorResponse(BaseModel):
