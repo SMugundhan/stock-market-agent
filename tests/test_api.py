@@ -1,13 +1,17 @@
 # tests/test_api.py
 
-from unittest.mock import patch, AsyncMock
+from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
+
 import json
+
 from fastapi.testclient import TestClient
 # TestClient = FastAPI's built-in synchronous test client
 # Lets you make HTTP requests to your FastAPI app in tests
 # WITHOUT actually starting a server — no port, no network
+
+from api . main import app, get_graph
 
 from api.main import app
 
@@ -68,20 +72,22 @@ class TestAnalyzeEndpoint:
         })
 
     def test_valid_ticker_returns_200(self):
-        """Valid analysis request should return HTTP 200"""
-        with patch("api.main.graph") as mock_graph:
-            mock_graph.ainvoke = AsyncMock (return_value = {
-                "final_report": self.get_mock_report(),
-                "analysis_type": "full",
-                "errors": []
-            })
-            with patch("api.main.save_conversation_turn"):
-                response = client.post("/analyze", json={
-                    "ticker": "AAPL",
-                    "query_type": "full"
-                })
-                assert response.status_code == 200
+        
+        mock_graph = MagicMock()
+        
+        mock_graph.ainvoke = AsyncMock(return_value={...})  # analyze uses ainvoke — note async mock!
 
+        app.dependency_overrides[get_graph] = lambda: mock_graph
+
+        with TestClient(app) as client:
+            
+            response = client.post("/analyze", json={"ticker": "AAPL"})
+
+        assert response.status_code == 200
+        
+        app.dependency_overrides.clear()
+
+        
     def test_response_has_verdict(self):
         """Response must contain a verdict with recommendation"""
         with patch("api.main.graph") as mock_graph:
