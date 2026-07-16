@@ -1,6 +1,6 @@
 # tests/test_api.py
 
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, AsyncMock
 
 import pytest
 
@@ -11,11 +11,20 @@ from fastapi.testclient import TestClient
 # Lets you make HTTP requests to your FastAPI app in tests
 # WITHOUT actually starting a server — no port, no network
 
-from api . main import app, get_graph
-
-from api.main import app
+from api.main import app, get_graph
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def clear_overrides():
+    """
+    Runs after EVERY test automatically (autouse=True).
+    Guarantees a mock registered in one test can never leak into the next,
+    even if a test fails before reaching its own cleanup line.
+    """
+    yield
+    app.dependency_overrides.clear()
 
 
 class TestHealthEndpoint:
@@ -71,50 +80,49 @@ class TestAnalyzeEndpoint:
             "errors": []
         })
 
-    def test_valid_ticker_returns_200(self):
-        
+    def _mock_graph_with(self, final_report, analysis_type="full", errors=None, ticker="AAPL"):
+        """
+        Helper: builds a MagicMock graph whose .ainvoke() returns a REAL dict
+        (not the {...} set bug) shaped like actual LangGraph final state.
+        """
         mock_graph = MagicMock()
-        
-        mock_graph.ainvoke = AsyncMock(return_value={...})  # analyze uses ainvoke — note async mock!
+        mock_graph.ainvoke = AsyncMock(return_value={
+            "final_report": final_report,
+            "analysis_type": analysis_type,
+            "errors": errors or [],
+            "ticker": ticker
+        })
+        return mock_graph
 
+    def test_valid_ticker_returns_200(self):
+        mock_graph = self._mock_graph_with(self.get_mock_report())
         app.dependency_overrides[get_graph] = lambda: mock_graph
 
-        with TestClient(app) as client:
-            
-            response = client.post("/analyze", json={"ticker": "AAPL"})
+        response = client.post("/analyze", json={"ticker": "AAPL"})
 
         assert response.status_code == 200
-        
-        app.dependency_overrides.clear()
 
-        
     def test_response_has_verdict(self):
         """Response must contain a verdict with recommendation"""
-        with patch("api.main.graph") as mock_graph:
-            mock_graph.ainvoke = AsyncMock ( return_value = {
-                "final_report": self.get_mock_report(),
-                "analysis_type": "full",
-                "errors": []
-            } )
-            with patch("api.main.save_conversation_turn"):
-                response = client.post("/analyze", json={"ticker": "AAPL"})
-                data = response.json()
-                assert "verdict" in data
-                assert "recommendation" in data["verdict"]
+        mock_graph = self._mock_graph_with(self.get_mock_report())
+        app.dependency_overrides[get_graph] = lambda: mock_graph
+
+        response = client.post("/analyze", json={"ticker": "AAPL"})
+        data = response.json()
+
+        assert "verdict" in data
+        assert "recommendation" in data["verdict"]
 
     def test_recommendation_is_valid_value(self):
         """Recommendation must be BUY, HOLD, or SELL"""
-        with patch("api.main.graph") as mock_graph:
-            mock_graph.ainvoke = AsyncMock ( return_value = {
-                "final_report": self.get_mock_report(),
-                "analysis_type": "full",
-                "errors": []
-            } )
-            with patch("api.main.save_conversation_turn"):
-                response = client.post("/analyze", json={"ticker": "AAPL"})
-                data = response.json()
-                rec = data["verdict"]["recommendation"]
-                assert rec in ["BUY", "HOLD", "SELL"]
+        mock_graph = self._mock_graph_with(self.get_mock_report())
+        app.dependency_overrides[get_graph] = lambda: mock_graph
+
+        response = client.post("/analyze", json={"ticker": "AAPL"})
+        data = response.json()
+        rec = data["verdict"]["recommendation"]
+
+        assert rec in ["BUY", "HOLD", "SELL"]
 
     def test_missing_ticker_returns_422(self):
         """Request without ticker field should return 422 Unprocessable"""
@@ -128,16 +136,14 @@ class TestAnalyzeEndpoint:
 
     def test_error_state_returns_404(self):
         """If orchestrator rejects the ticker, return 404"""
-        with patch("api.main.graph") as mock_graph:
-            mock_graph.ainvoke = AsyncMock ( return_value = {
-                "final_report": None,
-                "analysis_type": "error",
-                "errors": ["Invalid ticker: INVALIDXYZ"],
-                "ticker": "INVALIDXYZ"
-            } )
-            response = client.post("/analyze", json={
-                "ticker": "INVALIDXYZ"
-            })
-            assert response.status_code == 404
+        mock_graph = self._mock_graph_with(
+            final_report=None,
+            analysis_type="error",
+            errors=["Invalid ticker: INVALIDXYZ"],
+            ticker="INVALIDXYZ"
+        )
+        app.dependency_overrides[get_graph] = lambda: mock_graph
 
-            # Changed file from day 16 refinement
+        response = client.post("/analyze", json={"ticker": "INVALIDXYZ"})
+
+        assert response.status_code == 404
