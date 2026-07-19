@@ -8,18 +8,18 @@ from core . async_utils import run_sync_in_thread
 
 
 
-def _fetch_price_quick_async_ ( ticker : str ) -> dict:
+#def _fetch_price_quick_async_ ( ticker : str ) -> dict:
 
-    stock = yf. Ticker ( ticker )
+# stock = yf. Ticker ( ticker )
 
-    hist = stock. history ( period = "1d" )
+# hist = stock. history ( period = "1d" )
 
-    current_price = round ( float ( hist [ "Close" ]. iloc [ -1 ]), 2 )
+#  current_price = round ( float ( hist [ "Close" ]. iloc [ -1 ]), 2 )
 
-    return { "current_price" : current_price }
+#   return { "current_price" : current_price }
 
 
-async def price_agent_quick_node ( state : StockAnalysisState ) -> dict:
+def price_agent_quick_node ( state : StockAnalysisState ) -> dict:
 
     ticker = state [ "ticker" ]
 
@@ -39,7 +39,13 @@ async def price_agent_quick_node ( state : StockAnalysisState ) -> dict:
 
     try :
 
-        result = await run_sync_in_thread ( _fetch_price_quick_async_, ticker )
+        stock = yf. Ticker ( ticker )
+
+        hist = stock. history ( period = "1d" )
+
+        current_price = round ( float ( hist [ "Close" ]. iloc [ -1 ]), 2 )
+
+        result = { "current_price" : current_price }
     
         set_cached ( "price", ticker, result )
 

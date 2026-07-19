@@ -75,7 +75,7 @@ async def analyst_agent_node ( state: StockAnalysisState ) -> dict :
 
         recommendation = "HOLD" # default to HOLD if not found
 
-        confidenace = 0.5
+        confidence = 0.5
 
         reasoning = raw_text # default to raw text if parsing fails
 
@@ -87,17 +87,17 @@ async def analyst_agent_node ( state: StockAnalysisState ) -> dict :
 
             elif line.startswith ( "CONFIDENCE" ) :
 
-                confidenace = float ( line . split ( ":" ) [ 1 ] . strip ( ) )
+                confidence = float ( line . split ( ":" ) [ 1 ] . strip ( ) )
 
             elif line.startswith ( "REASONING" ) :
 
                 reasoning = line . split ( ":" ) [ 1 ] . strip ( )
 
-        print ( f" Analyst Agent : Recommendation = { recommendation } , Confidence = { confidenace } , Reasoning = { reasoning } " )
+        print ( f" Analyst Agent : Recommendation = { recommendation } , Confidence = { confidence } , Reasoning = { reasoning } " )
 
         # Step 4 : Write the results back to the state
 
-        return { "recommendation" : recommendation , "confidence" : confidenace , "reasoning" : reasoning }
+        return { "recommendation" : recommendation , "confidence" : confidence , "reasoning" : reasoning }
     
 
     except Exception as e :

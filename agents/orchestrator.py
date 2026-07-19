@@ -176,7 +176,7 @@ def orchestrator_node ( state : StockAnalysisState ) -> dict:
 
         return { "ticker" : resolved_ticker , "analysis_type" : "quick", "should_fetch_news": False, "should calculate risk" : False, "error" : [] }
     
-    elif query == "risk_only": 
+    elif query == "risk_only":
 
         # Skip news
 
@@ -190,7 +190,7 @@ def orchestrator_node ( state : StockAnalysisState ) -> dict:
 
         print ( " Full analysis mode ---- running all agents " )
 
-        return { "ticker" : resolved_ticker ,"analysis_type" : "True", "should_fetch_news": True, "should calculate risk" : True, "error" : [] }
+        return { "ticker" : resolved_ticker ,"analysis_type" : "Full", "should_fetch_news": True, "should calculate risk" : True, "error" : [] }
 
 
 

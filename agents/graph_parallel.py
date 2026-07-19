@@ -18,7 +18,7 @@ from agents . report_agent  import report_agent_node
 
 def build_parallel_graph ():
 
-    graph = StateGraph ( StockAnalysisState )
+    graph = AsyncGraph ( StockAnalysisState )
 
     graph . add_node ( "orchestrator", orchestrator_node )
 
@@ -60,4 +60,4 @@ def build_parallel_graph ():
     
     graph.add_edge("report_agent",  END)
 
-    return graph.compile( AsyncGraph )
+    return graph.compile()
