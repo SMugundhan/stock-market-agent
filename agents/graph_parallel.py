@@ -1,4 +1,4 @@
-from langgraph . graph import StateGraph, END
+from langgraph . graph import StateGraph, END, AsyncGraph
 
 from core . state import StockAnalysisState
 
@@ -60,4 +60,4 @@ def build_parallel_graph ():
     
     graph.add_edge("report_agent",  END)
 
-    return graph.compile()
+    return graph.compile( AsyncGraph )
