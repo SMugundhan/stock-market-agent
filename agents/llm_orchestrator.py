@@ -30,7 +30,7 @@ llm_with_tools = llm.bind_tools([
 ])
 
 
-def run_llm_orchestrator(user_query: str, session_id: str = "default") -> str:
+async def run_llm_orchestrator(user_query: str, session_id: str = "default") -> str:
     """
     LLM-driven orchestrator — the LLM decides which tools to call.
 
@@ -76,7 +76,7 @@ Common mappings: Apple=AAPL, Tesla=TSLA, Google=GOOGL, Microsoft=MSFT
         print(f"\n🔄 Iteration {iteration + 1}")
 
         # Ask LLM what to do next
-        response = llm_with_tools.invoke(messages)
+        response = await llm_with_tools.aiinvoke(messages)
         # response could be:
         # A) A tool call decision: "call get_stock_price with ticker='AAPL'"
         # B) A final text answer: "Based on the data, AAPL is..."
@@ -117,7 +117,7 @@ Common mappings: Apple=AAPL, Tesla=TSLA, Google=GOOGL, Microsoft=MSFT
 
             if tool_fn:
                 try:
-                    tool_result = tool_fn.invoke(tool_args)
+                    tool_result = await tool_fn.aiinvoke(tool_args)
                     # .invoke() executes the actual tool function
                     print(f"📊 Tool result: {str(tool_result)[:100]}...")
                 except Exception as e:

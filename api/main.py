@@ -280,7 +280,7 @@ async def analyze_stock(request: AnalysisRequest, graph = Depends ( get_graph ) 
 
 
 @app.get("/stocks/{ticker}/quick", tags=["Analysis"])
-def quick_price_check(ticker: str):
+async def quick_price_check(ticker: str):
     """
     Lightweight endpoint — just price data, skips news/risk/LLM calls.
     Much faster than /analyze for simple price checks.
@@ -305,7 +305,7 @@ def quick_price_check(ticker: str):
         "error": [], "retry_count": 0
     }
 
-    final_state = graph . invoke(initial_state)
+    final_state = await graph . ainvoke(initial_state)
     # This is not async becuz one one agent will run...no need of parallel exe
 
     return {
@@ -317,7 +317,7 @@ def quick_price_check(ticker: str):
 
 
 @app . post ( "/chat", response_model = ChatResponse, tags = [ "Chat" ] )
-def chat ( request : ChatRequest ) :
+async def chat ( request : ChatRequest ) :
 
     """
     Natural language interface — ask anything about any stock.
@@ -329,7 +329,7 @@ def chat ( request : ChatRequest ) :
     - "Give me a full analysis of Microsoft"
     - "What's the latest news sentiment on NVDA?"
     """
-    response = run_llm_orchestrator ( request . query, request . session_id )
+    response = await run_llm_orchestrator ( request . query, request . session_id )
 
     return ChatResponse ( query = request . query, response = response, session_id = request . session_id )
 

@@ -134,7 +134,7 @@ def calculate_risk ( ticker : str ) -> str:
 
 
 @tool
-def get_full_analysis ( ticker : str ) -> str:
+async def get_full_analysis ( ticker : str ) -> str:
 
     """
     Runs a COMPLETE multi-agent analysis including price, news sentiment,
@@ -173,7 +173,7 @@ def get_full_analysis ( ticker : str ) -> str:
         "error": [], "retry_count": 0
     }
 
-    final_state = graph . invoke ( state )
+    final_state = await graph . aiinvoke ( state )
 
     report = json . loads ( final_state . get ( "final_report", "{}" ) )
 
