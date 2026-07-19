@@ -6,11 +6,15 @@ from memory. cache import set_cached, get_cached
 
 from core . async_utils import run_sync_in_thread
 
+import requests
+
 
 
 def _fetch_price_quick_async_ ( ticker : str ) -> dict:
+
+    session = requests . Session ()
     
-    stock = yf. Ticker ( ticker )
+    stock = yf. Ticker ( ticker, session = session )
 
     hist = stock. history ( period = "1d" )
 

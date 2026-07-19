@@ -10,6 +10,8 @@ import uuid
 
 from core . logger import get_logger, log_with_context
 
+import requests
+
 COMMON_MAP_NAME = {
     "tesla":     "TSLA",
     "apple":     "AAPL",
@@ -46,8 +48,10 @@ def _fetch_price_sync ( ticker : str ) -> dict:
     This stays sync ( Regular function as Yfinance itself cant be async )
     """
     # Step 2 : Create a yfinance Ticker object to fetch data.
+
+    session = requests . Session ()
     
-    stock = yf. Ticker ( ticker ) # yf.Ticker ( "AAAPL" ) creates an obj connected to AAPL stock data
+    stock = yf. Ticker ( ticker, session = session ) # yf.Ticker ( "AAAPL" ) creates an obj connected to AAPL stock data
 
     # Step 3 : Fetch last 30 days of price data using .history() method
 

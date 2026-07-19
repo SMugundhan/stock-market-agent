@@ -2,6 +2,8 @@ import numpy as np  # For std deviation calculation
 
 import yfinance as yf
 
+import requests
+
 from core. state import StockAnalysisState
 
 from core . async_utils import run_sync_in_thread
@@ -13,7 +15,9 @@ def _calculate_risk_sync ( ticker : str ) -> dict :
     """
     # Step 1 fetch historical data
 
-    stock = yf. Ticker ( ticker )
+    session = requests . Session()
+
+    stock = yf. Ticker ( ticker, session = session )
 
     hist = stock.history ( period = "6mo", interval = "1d" )
 

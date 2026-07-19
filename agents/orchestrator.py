@@ -3,6 +3,7 @@
     #Full names → "TESLA" instead of "TSLA"
     #Wrong exchange tickers → "RELIANCE" (Indian stock) in a US system
     #Delisted stocks → ticker exists but no data
+import requests
 
 import yfinance as ysf
 
@@ -82,7 +83,9 @@ def validate_and_resolve_ticker ( ticker : str ) -> tuple [ str, str | None ] :
 
     try :
 
-        test = ysf. Ticker ( ticker )
+        session = requests . Session()
+
+        test = ysf. Ticker ( ticker, session = session )
 
         info = test.info
         # info - fetched the onfo of the company from yahoo finance
