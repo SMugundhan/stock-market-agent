@@ -2,6 +2,8 @@ import json
 
 from memory.redis_client import redis_client
 
+import redis
+
 # Price changes every seconds, news changes every minutes
 
 CACHE_TTL = {
@@ -21,7 +23,13 @@ def get_cached ( key_type : str, ticker : str ):
 
     cache_key = f" cache : { key_type } : { ticker } " # Eg -> cache : price : AAPL
 
-    cached_value = redis_client. get ( cache_key )
+    try :
+
+        cached_value = redis_client. get ( cache_key )
+    
+    except redis. exceptions . RedisError as e :
+
+        print ( f"Cache un available ( { e } ) --- treating as cache miss" )
 
     if cached_value :
 
@@ -42,6 +50,12 @@ def set_cached ( key_type : str, ticker : str, data : dict ):
 
     ttl = CACHE_TTL. get ( key_type, 300 )
 
-    redis_client. set ( cache_key, json. dumps ( data ), ex = ttl )
+    try :
 
-    print ( f" Cached : { cache_key } ( expires in { ttl }s ) " )
+        redis_client. set ( cache_key, json. dumps ( data ), ex = ttl )
+
+        print ( f" Cached : { cache_key } ( expires in { ttl }s ) " )
+
+    except redis . exceptions . RedisError as e :
+
+        print ( f"Could not catch { cache_key } --- Redis unavailable " )

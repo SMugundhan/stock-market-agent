@@ -4,6 +4,8 @@ from datetime import datetime
 
 from memory. redis_client import redis_client
 
+import redis
+
 CONVERSATION_TTL = 3600 # 1 hr of inactivity = conversation expires
 
 def save_conversation_turn ( session_id : str, ticker : str, report : dict ) : 
@@ -19,29 +21,35 @@ def save_conversation_turn ( session_id : str, ticker : str, report : dict ) :
 
     # Get existing convo id or start a fresh one
 
-    existing = redis_client. get ( conversation_key )
+    try :
 
-    history = json. loads ( existing ) if existing else []
+        existing = redis_client. get ( conversation_key )
 
-    history. append ( { "timestamp" : datetime.now ().isoformat(), # isoformat -> "2026-06-16T14:30:00"  --- standard format
+        history = json. loads ( existing ) if existing else []
+
+        history. append ( { "timestamp" : datetime.now ().isoformat(), # isoformat -> "2026-06-16T14:30:00"  --- standard format
                         "ticker" : ticker,
                         "report_summary" : {
                                             "recommendation" : report. get ( "verdict", {} ). get ( "recommendation" ),
                                             "confidence" : report. get ( "verdict", {} ). get ( "confidence" ),
-                                            "price" : report . get ( "market_data", {} ). get ( " current_price" ),
+                                            "price" : report . get ( "market_data", {} ). get ( "current_price" ),
                                             "rsi" : report. get ( "market_data", {} ) . get ( "rsi" )
                                             }
                         } )
     
 
-    # keep only last 10 turns --- prevent unlimited growth
-    history = history [ -10 : ]
+        # keep only last 10 turns --- prevent unlimited growth
+        history = history [ -10 : ]
 
-    # Save back to redis, refresh expiration
+        # Save back to redis, refresh expiration
 
-    redis_client. set ( conversation_key, json.dumps ( history ), ex = CONVERSATION_TTL )
+        redis_client. set ( conversation_key, json.dumps ( history ), ex = CONVERSATION_TTL )
 
-    print ( f" Saved convos turn for session { session_id } " )
+        print ( f" Saved convos turn for session { session_id } " )
+
+    except redis . exception . RedisError as e :
+
+        print ( f"Could not save the conversation turn  -- redis unavailable" )
 
 
 def get_conversation_history ( session_id : str ) -> list:
@@ -50,9 +58,17 @@ def get_conversation_history ( session_id : str ) -> list:
 
     conversation_key = f" conversation : { session_id } "
 
-    existing = redis_client. get ( conversation_key )
+    try :
 
-    if existing : 
+        existing = redis_client. get ( conversation_key )
+
+    except redis . exceptions . RedisError as e:
+
+        print ( f"Could not fetch the convo  --- redis unavailable ( {e} )" )
+
+        return []
+
+    if existing :
 
         return json. loads ( existing )
     
