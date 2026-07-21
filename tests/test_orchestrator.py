@@ -67,6 +67,30 @@ class TestTickerValidation:
         assert error is None
         assert resolved == expected_ticker
 
+    def test_yfinance_failure_falls_back_to_ticker_not_error(self):
+        """
+            If yFinance validation itself throws (network/blocking issue),
+            we should NOT hard-reject — we fall back to trusting the
+            cleaned-up ticker and let price fetching surface the real outcome.
+        """
+        with patch("agents.orchestrator.ysf.Ticker") as mock:
+            mock.side_effect = Exception("Simulated network/blocking failure")
+            resolved, error = validate_and_resolve_ticker("AAPL")
+            assert error is None
+            assert resolved == "AAPL"
+
+
+    def test_yfinance_returns_empty_info_is_still_rejected(self):
+        """
+        If yFinance DOES respond but with no useful data, that's a
+        confirmed-invalid signal — this case should still be rejected.
+        """
+        with patch("agents.orchestrator.ysf.Ticker") as mock:
+            mock.return_value.info = {}  # no regularMarketPrice, no longName
+            resolved, error = validate_and_resolve_ticker("FAKETICKER123")
+            assert error is not None
+            assert resolved == ""
+
 
 # ── Helper context manager ──────────────────────────────
 from contextlib import contextmanager

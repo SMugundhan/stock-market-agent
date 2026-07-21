@@ -3,7 +3,7 @@
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, ANY
 
 # Import the function we're testing
 from agents.price_agent import _fetch_price_sync, price_agent_node
@@ -28,7 +28,7 @@ class TestFetchPriceSync:
             # mock_ticker() returns a mock object
             # that mock object's .history() returns our fake DataFrame
 
-            result = _fetch_price_sync("AAPL")
+            result = _fetch_price_sync("AAPL", session = ANY)
 
             # Assert all required keys are present
             assert "current_price" in result
@@ -39,14 +39,14 @@ class TestFetchPriceSync:
         """Price should always be a float, not a string or int"""
         with patch("agents.price_agent.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.return_value = mock_yfinance_data
-            result = _fetch_price_sync("AAPL")
+            result = _fetch_price_sync("AAPL", session = ANY)
             assert isinstance(result["current_price"], float)
 
     def test_rsi_within_valid_range(self, mock_yfinance_data):
         """RSI must always be between 0 and 100 — that's its definition"""
         with patch("agents.price_agent.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.return_value = mock_yfinance_data
-            result = _fetch_price_sync("AAPL")
+            result = _fetch_price_sync("AAPL", session = ANY)
             assert 0 <= result["rsi"] <= 100
 
     def test_empty_dataframe_raises_error(self):
@@ -70,7 +70,7 @@ class TestFetchPriceSync:
         with patch("agents.price_agent.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.return_value = df
 
-            result = _fetch_price_sync("TEST")
+            result = _fetch_price_sync("TEST", session = ANY)
             # ((110 - 100) / 100) * 100 = 10.0%
             assert result["price_change_pct"] == pytest.approx(10.0, abs=0.01)
             # pytest.approx() allows tiny floating point differences
