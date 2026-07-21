@@ -121,7 +121,7 @@ class TestPriceAgentNode:
                     result = await price_agent_node(base_state)
 
                     # yFinance SHOULD have been called
-                    mock_yf.assert_called_once_with("AAPL")
+                    mock_yf.assert_called_once_with("AAPL", session = ANY)
                     # assert_called_once_with() = verify called exactly
                     # once, with exactly these arguments
 

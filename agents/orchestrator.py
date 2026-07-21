@@ -17,6 +17,13 @@ from difflib import get_close_matches
 # difflib is python's inbuild fuzzy matching library
 # get_close_matches fins strings similar to a given string
 
+# Reusable session with browser-like headers — reduces yfinance
+# getting blocked/rate-limited on cloud provider IPs (e.g. Render)
+_yf_session = requests.Session()
+_yf_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+})
+
 llm = ChatGroq ( api_key = config.GROQ_API_KEY, model_name = config.MODEL_NAME )
 
 # Common name -> Ticker mappping for popular stocks

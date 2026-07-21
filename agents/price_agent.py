@@ -12,6 +12,15 @@ from core . logger import get_logger, log_with_context
 
 import requests
 
+
+# Reusable session — created once, reused across all price fetches,
+# with browser-like headers to reduce yfinance blocking on cloud IPs
+_yf_session = requests.Session()
+
+_yf_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+})
+
 COMMON_MAP_NAME = {
     "tesla":     "TSLA",
     "apple":     "AAPL",
@@ -49,7 +58,7 @@ def _fetch_price_sync ( ticker : str ) -> dict:
     """
     # Step 2 : Create a yfinance Ticker object to fetch data.
 
-    session = requests . Session ()
+    session = session or _yf_session
     
     stock = yf. Ticker ( ticker, session = session ) # yf.Ticker ( "AAAPL" ) creates an obj connected to AAPL stock data
 
