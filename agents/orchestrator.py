@@ -46,89 +46,63 @@ KNOWN_TICKERS = [
     "RELIANCE.NS", "INFY", "TCS.NS", "WIPRO.NS"
 ]
 
-def validate_and_resolve_ticker ( ticker : str ) -> tuple [ str, str | None ] : 
-
+def validate_and_resolve_ticker(ticker: str) -> tuple[str, str | None]:
     """
     Validates ticker and attempts to resolve it if wrong.
 
     Returns:
         (resolved_ticker, error_message)
         If valid: ("AAPL", None)
-        If resolved: ("TSLA", None)  ← user typed "TESLA"
-        If invalid: ("", "error message with suggestion")
+        If resolved: ("TSLA", None)
+        If confirmed invalid: ("", "error message with suggestion")
+        If validation itself failed (network/blocking issue): falls back
+        to trusting the cleaned-up ticker rather than hard-rejecting —
+        downstream price fetching will surface the real error if the
+        ticker genuinely doesn't exist.
     """
-
-    # Layer 1 basic cleanup
-
-    ticker = ticker. strip (). upper ()
+    ticker = ticker.strip().upper()
 
     if not ticker:
+        return '', "Ticker cannot be empty"
 
-        return '', " Ticker cannot be empty "
-    
-    # Layer 2 -> company name -> ticker mapping
-
-    ticker_lower = ticker. lower ()
-
+    ticker_lower = ticker.lower()
     if ticker_lower in COMMON_MAP_NAME:
-
-        resolved = COMMON_MAP_NAME [ ticker_lower ]
-
-        print ( f" Resolved Company name '{ ticker }' -> '{resolved}' " )
-
+        resolved = COMMON_MAP_NAME[ticker_lower]
+        print(f" Resolved Company name '{ticker}' -> '{resolved}' ")
         return resolved, None
-    
-    # layer 3 Real time validation via yFinance
-    # This is a reliable way to know if a ticker is valid or not
 
-    try :
-
-        session = requests . Session()
-
-        test = ysf. Ticker ( ticker, session = session )
-
+    # Layer 3: real-time validation via yFinance
+    try:
+        test = ysf.Ticker(ticker, session=_yf_session)
         info = test.info
-        # info - fetched the onfo of the company from yahoo finance
-        # if ticker dont exist it will be {}
 
-        # Check if we got meaningful data back
-        # "regularMarketPlace" exists for valid, active tickers
-        # "longname" exists for most valid tickers
+        has_price = info.get("regularMarketPrice") is not None
+        has_name = info.get("longName") is not None
 
-        has_price = info. get ( "regularMarketPrice" )is not None
-
-        has_name = info. get ( "longName" )is not None
-        
         if not has_name and not has_price:
-
-            # Yfinance returns empty / minimal data -> invalid ticker
-            # Try suggest closest vaid ticker
-
-            suggestions = get_close_matches ( ticker, KNOWN_TICKERS, n = 3, cutoff = 0.5 )
-            # return upto 3 suggestions and minimum 50% similairy
-
+            # yfinance returned a response, but with no useful data.
+            # This is a CONFIRMED signal the ticker is genuinely invalid
+            # (Yahoo responded, just found nothing) — safe to reject.
+            suggestions = get_close_matches(ticker, KNOWN_TICKERS, n=3, cutoff=0.5)
             if suggestions:
-
-                suggestion_str = ','.join ( suggestions )
-
-                return "", f" Ticker { ticker } not found. Do you mean : { suggestion_str } ? "
-            
+                suggestion_str = ','.join(suggestions)
+                return "", f" Ticker {ticker} not found. Do you mean : {suggestion_str} ? "
             else:
+                return "", f" Ticker {ticker} not found. Please check the symbol "
 
-                return "", f" Ticker { ticker } not found. Please check the symbol "
-            
-        # Valid ticker ---- return it
-
-        company_name = info. get ( "longName", ticker )
-
-        print ( f" Validated : { ticker } = { company_name } " )
-
+        company_name = info.get("longName", ticker)
+        print(f" Validated : {ticker} = {company_name} ")
         return ticker, None
 
     except Exception as e:
-
-        return "", f" Could not validate ticker { ticker } : { str ( e ) } "
-
+        # We COULDN'T check — this is different from CONFIRMED invalid.
+        # Could be Yahoo blocking/rate-limiting the request, a network
+        # blip, or a timeout. Don't punish the user for our validation
+        # layer failing — fall back to trusting the cleaned ticker and
+        # let price_agent's own fetch attempt surface the real outcome.
+        print(f" Validation check failed for {ticker} ({e}) — proceeding without hard validation ")
+        return ticker, None
+    
 def orchestrator_node ( state : StockAnalysisState ) -> dict:
 
     """
