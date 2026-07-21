@@ -51,7 +51,7 @@ logger = get_logger ( "price_agent" )
 
 
 
-def _fetch_price_sync ( ticker : str ) -> dict:
+def _fetch_price_sync ( ticker : str, session : requests . Session = None ) -> dict:
 
     """
     This stays sync ( Regular function as Yfinance itself cant be async )
