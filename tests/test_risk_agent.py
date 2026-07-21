@@ -33,7 +33,7 @@ class TestRiskCalculations:
             # side_effect = [a, b] means: first call returns a,
             #                              second call returns b
 
-            result = _calculate_risk_sync("AAPL", session = ANY)
+            result = _calculate_risk_sync("AAPL")
 
             # Constant price = zero daily returns = zero volatility
             assert result["volatility"] == pytest.approx(0.0, abs=0.1)
@@ -58,7 +58,7 @@ class TestRiskCalculations:
 
         with patch("agents.risk_agent.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.side_effect = [df, spy_df]
-            result = _calculate_risk_sync("TSLA", session = ANY)
+            result = _calculate_risk_sync("TSLA")
             assert result["risk_level"] == "HIGH"
 
     def test_risk_level_values_are_valid(self):
@@ -71,7 +71,7 @@ class TestRiskCalculations:
 
         with patch("agents.risk_agent.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.side_effect = [df, spy_df]
-            result = _calculate_risk_sync("AAPL", session = ANY)
+            result = _calculate_risk_sync("AAPL")
             assert result["risk_level"] in ["LOW", "MEDIUM", "HIGH"]
 
     def test_max_drawdown_is_negative(self):
