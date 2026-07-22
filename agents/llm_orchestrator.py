@@ -76,7 +76,7 @@ Common mappings: Apple=AAPL, Tesla=TSLA, Google=GOOGL, Microsoft=MSFT
         print(f"\n🔄 Iteration {iteration + 1}")
 
         # Ask LLM what to do next
-        response = await llm_with_tools.aiinvoke(messages)
+        response = await llm_with_tools.ainvoke(messages)
         # response could be:
         # A) A tool call decision: "call get_stock_price with ticker='AAPL'"
         # B) A final text answer: "Based on the data, AAPL is..."
