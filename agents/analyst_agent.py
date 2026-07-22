@@ -17,6 +17,8 @@ async def analyst_agent_node ( state: StockAnalysisState ) -> dict :
     """
 
     print ( f" Analyst agent : Analyzing { state [ 'ticker' ] } ... " )
+
+    retry_count = state . get ( "retry_count", 0 )
     
     # Step 1 Build the promt using real data from state
 
@@ -97,11 +99,11 @@ async def analyst_agent_node ( state: StockAnalysisState ) -> dict :
 
         # Step 4 : Write the results back to the state
 
-        return { "recommendation" : recommendation , "confidence" : confidence , "reasoning" : reasoning }
+        return { "recommendation" : recommendation , "confidence" : confidence , "reasoning" : reasoning, "error" : [] }
     
 
     except Exception as e :
 
         print ( f" Analyst Agent Error : { e } " )
 
-        return { "recommendation" : "HOLD" , "confidence" : 0.5 , "reasoning" : f"Error occurred : { str ( e ) } " }
+        return { "recommendation" : "HOLD" , "confidence" : 0.5 , "reasoning" : f"Error occurred : { str ( e ) } ", "error" : [ str ( e ) ], "retry_count" : retry_count + 1 }
