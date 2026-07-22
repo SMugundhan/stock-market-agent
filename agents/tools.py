@@ -173,7 +173,7 @@ async def get_full_analysis ( ticker : str ) -> str:
         "error": [], "retry_count": 0
     }
 
-    final_state = await graph . aiinvoke ( state )
+    final_state = await graph . ainvoke ( state )
 
     report = json . loads ( final_state . get ( "final_report", "{}" ) )
 

@@ -117,7 +117,7 @@ Common mappings: Apple=AAPL, Tesla=TSLA, Google=GOOGL, Microsoft=MSFT
 
             if tool_fn:
                 try:
-                    tool_result = await tool_fn.aiinvoke(tool_args)
+                    tool_result = await tool_fn.ainvoke(tool_args)
                     # .invoke() executes the actual tool function
                     print(f"📊 Tool result: {str(tool_result)[:100]}...")
                 except Exception as e:
