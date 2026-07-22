@@ -47,7 +47,7 @@ def save_conversation_turn ( session_id : str, ticker : str, report : dict ) :
 
         print ( f" Saved convos turn for session { session_id } " )
 
-    except redis . exception . RedisError as e :
+    except redis . exceptions . RedisError as e :
 
         print ( f"Could not save the conversation turn  -- redis unavailable" )
 
