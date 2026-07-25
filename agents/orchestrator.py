@@ -11,6 +11,8 @@ from langchain_groq import ChatGroq
 
 from core.state import StockAnalysisState
 
+from opentelemetry import trace
+
 from core.config import config
 
 from difflib import get_close_matches
@@ -25,6 +27,8 @@ _yf_session.headers.update({
 })
 
 llm = ChatGroq ( api_key = config.GROQ_API_KEY, model_name = config.MODEL_NAME )
+
+tracer = trace . get_tracer ( "stock-market-agent" )
 
 # Common name -> Ticker mappping for popular stocks
 
@@ -122,59 +126,71 @@ def orchestrator_node ( state : StockAnalysisState ) -> dict:
     Writes: analysis_type, should_fetch_news, should_calculate_risk
     """
 
-    ticker = state.get ( 'ticker', '' )
+    with tracer . start_as_current_span ( "orchestrator" ) as span:
 
-    print ( f" Orchestrator : Starting analysis for { ticker } " )
+        ticker = state.get ( 'ticker', '' )
 
-    # Validate ticker
+        span . set_attribute ( "ticker", ticker )
 
-    resolved_ticker, error = validate_and_resolve_ticker ( ticker )
+        print ( f" Orchestrator : Starting analysis for { ticker } " )
 
-    if error:
+        # Validate ticker
 
-        # Tickers alwasy short -> AAPL, TSLA, GOOGL, etc..,
+        resolved_ticker, error = validate_and_resolve_ticker ( ticker )
+
+        if error:
+
+            # Tickers alwasy short -> AAPL, TSLA, GOOGL, etc..,
         
-        print ( "Invalid ticker" )
+            print ( "Invalid ticker" )
 
-        return {
-            "error" : [ f" Invalid ticker : { ticker } " ],
-            "analysis_type" : "error"
-        }
+            span.set_attribute("validation_error", True)
+
+            span.set_attribute("error_message", error)
+
+            return {
+                "error" : [ f" Invalid ticker : { ticker } " ],
+                "analysis_type" : "error"
+            }
     
-    if resolved_ticker != ticker.strip().upper ():
+        if resolved_ticker != ticker.strip().upper ():
 
-        print ( f" Using resolved ticker : { resolved_ticker } " )
+            print ( f" Using resolved ticker : { resolved_ticker } " )
+
+            span.set_attribute("ticker_resolved", resolved_ticker)
     
-    # Determine what kindof analysis to run
-    # Based on ticker type - this is simpliefied logic
-    # In production, the LLM woul make this decision
-    query = state. get ( "query_type", "full" ).lower ()
-    # query type can be full, risk_only, quick
-    # Default is full - all agents
+        # Determine what kindof analysis to run
+        # Based on ticker type - this is simpliefied logic
+        # In production, the LLM woul make this decision
+        query = state. get ( "query_type", "full" ).lower ()
+        # query type can be full, risk_only, quick
+        # Default is full - all agents
 
-    if query == "quick":
+        span.set_attribute("query_type", query)
 
-        # Quick mode - only price, skip news and risk
+        if query == "quick":
 
-        print ( " Quick analysis mode --- ksipping news and risk " )
+            # Quick mode - only price, skip news and risk
 
-        return { "ticker" : resolved_ticker , "analysis_type" : "quick", "should_fetch_news": False, "should calculate risk" : False, "error" : [] }
+            print ( " Quick analysis mode --- ksipping news and risk " )
+
+            return { "ticker" : resolved_ticker , "analysis_type" : "quick", "should_fetch_news": False, "should calculate risk" : False, "error" : [] }
     
-    elif query == "risk_only":
+        elif query == "risk_only":
 
-        # Skip news
+            # Skip news
 
-        print ( " Risk only mode " )
+            print ( " Risk only mode " )
 
-        return { "ticker" : resolved_ticker ,"analysis_type" : "risk_only", "should_fetch_news": False, "should calculate risk" : True, "error" : [] }
+            return { "ticker" : resolved_ticker ,"analysis_type" : "risk_only", "should_fetch_news": False, "should calculate risk" : True, "error" : [] }
     
-    else:
+        else:
 
-        # Full analysis
+            # Full analysis
 
-        print ( " Full analysis mode ---- running all agents " )
+            print ( " Full analysis mode ---- running all agents " )
 
-        return { "ticker" : resolved_ticker ,"analysis_type" : True, "should_fetch_news": True, "should calculate risk" : True, "error" : [] }
+            return { "ticker" : resolved_ticker ,"analysis_type" : True, "should_fetch_news": True, "should calculate risk" : True, "error" : [] }
 
 
 

@@ -5,6 +5,9 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, Tool
 # These message types represent the conversation history
 # that the LLM sees when it's deciding what tool to call next
 
+from opentelemetry import trace
+tracer = trace.get_tracer("stock-market-agent")
+
 from core.config import config
 from agents.tools import (
     get_stock_price,
@@ -40,10 +43,14 @@ async def run_llm_orchestrator(user_query: str, session_id: str = "default") -> 
     - LLM can handle queries we never explicitly programmed for
     """
 
-    print(f"\n🤖 LLM Orchestrator received: '{user_query}'")
+    with tracer.start_as_current_span("llm_orchestrator") as span:
+        span.set_attribute("user_query", user_query)
+        span.set_attribute("session_id", session_id)
 
-    # System prompt — defines the LLM's role and behavior
-    system_prompt = """You are an intelligent stock market analysis assistant.
+        print(f"\n🤖 LLM Orchestrator received: '{user_query}'")
+
+        # System prompt — defines the LLM's role and behavior
+        system_prompt = """You are an intelligent stock market analysis assistant.
 You have access to tools that can fetch real-time stock data.
 
 Your job:
@@ -60,79 +67,90 @@ Always extract the ticker symbol from the user's query.
 Common mappings: Apple=AAPL, Tesla=TSLA, Google=GOOGL, Microsoft=MSFT
 """
 
-    # Build conversation — starts with system context + user's question
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_query)
-        # HumanMessage = what the user said
-    ]
+        # Build conversation — starts with system context + user's question
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_query)
+            # HumanMessage = what the user said
+        ]
 
-    # ── ReAct Loop ────────────────────────────────────────
-    # The LLM keeps going until it decides it has enough info
-    max_iterations = 5
-    # Safety limit — prevents infinite loops if LLM keeps calling tools
+        # ── ReAct Loop ────────────────────────────────────────
+        # The LLM keeps going until it decides it has enough info
+        max_iterations = 5
+        # Safety limit — prevents infinite loops if LLM keeps calling tools
 
-    for iteration in range(max_iterations):
-        print(f"\n🔄 Iteration {iteration + 1}")
+        for iteration in range(max_iterations):
+            print(f"\n🔄 Iteration {iteration + 1}")
 
-        # Ask LLM what to do next
-        response = await llm_with_tools.ainvoke(messages)
-        # response could be:
-        # A) A tool call decision: "call get_stock_price with ticker='AAPL'"
-        # B) A final text answer: "Based on the data, AAPL is..."
+            with tracer.start_as_current_span(f"llm_iteration_{iteration + 1}") as iter_span:
 
-        messages.append(response)
-        # Add LLM's response to conversation history
-        # This builds the context for the next iteration
+                # Ask LLM what to do next
+                response = await llm_with_tools.ainvoke(messages)
+                # response could be:
+                # A) A tool call decision: "call get_stock_price with ticker='AAPL'"
+                # B) A final text answer: "Based on the data, AAPL is..."
 
-        # Check if LLM wants to call any tools
-        if not response.tool_calls:
-            # No tool calls = LLM has decided it has enough info
-            # and is giving a final text answer
-            print(f"✅ LLM finished — providing final answer")
-            return response.content
+                messages.append(response)
+                # Add LLM's response to conversation history
+                # This builds the context for the next iteration
 
-        # LLM wants to call one or more tools
-        for tool_call in response.tool_calls:
-            # tool_calls is a list because LLM can call multiple tools
-            # in a single response
+                # Check if LLM wants to call any tools
+                if not response.tool_calls:
+                    # No tool calls = LLM has decided it has enough info
+                    # and is giving a final text answer
+                    iter_span.set_attribute("final_answer", True)
+                    span.set_attribute("iterations_used", iteration + 1)
+                    print(f"✅ LLM finished — providing final answer")
+                    return response.content
 
-            tool_name = tool_call["name"]
-            tool_args = tool_call["args"]
-            tool_call_id = tool_call["id"]
-            # tool_call_id is a unique identifier that links the
-            # tool call request to its result in the conversation
+                # LLM wants to call one or more tools
+                for tool_call in response.tool_calls:
+                    # tool_calls is a list because LLM can call multiple tools
+                    # in a single response
 
-            print(f"🔧 LLM calling tool: {tool_name}({tool_args})")
+                    tool_name = tool_call["name"]
+                    tool_args = tool_call["args"]
+                    tool_call_id = tool_call["id"]
+                    # tool_call_id is a unique identifier that links the
+                    # tool call request to its result in the conversation
 
-            # Find and execute the tool the LLM requested
-            tool_map = {
-                "get_stock_price":  get_stock_price,
-                "get_stock_news":   get_stock_news,
-                "calculate_risk":   calculate_risk,
-                "get_full_analysis": get_full_analysis
-            }
+                    print(f"🔧 LLM calling tool: {tool_name}({tool_args})")
 
-            tool_fn = tool_map.get(tool_name)
+                    with tracer.start_as_current_span(f"tool_call_{tool_name}") as tool_span:
+                        tool_span.set_attribute("tool_name", tool_name)
+                        tool_span.set_attribute("tool_args", str(tool_args))
 
-            if tool_fn:
-                try:
-                    tool_result = await tool_fn.ainvoke(tool_args)
-                    # .invoke() executes the actual tool function
-                    print(f"📊 Tool result: {str(tool_result)[:100]}...")
-                except Exception as e:
-                    tool_result = f"Tool failed: {str(e)}"
-                    print(f"❌ Tool error: {e}")
-            else:
-                tool_result = f"Unknown tool: {tool_name}"
+                        # Find and execute the tool the LLM requested
+                        tool_map = {
+                            "get_stock_price":  get_stock_price,
+                            "get_stock_news":   get_stock_news,
+                            "calculate_risk":   calculate_risk,
+                            "get_full_analysis": get_full_analysis
+                        }
 
-            # Add tool result to conversation so LLM can see it
-            messages.append(ToolMessage(
-                content=str(tool_result),
-                tool_call_id=tool_call_id
-                # Linking result back to the specific tool call request
-                # LLM needs this to understand which result belongs to which call
-            ))
+                        tool_fn = tool_map.get(tool_name)
 
-    # If we hit max_iterations without a final answer
-    return "Analysis incomplete — maximum iterations reached."
+                        if tool_fn:
+                            try:
+                                tool_result = await tool_fn.ainvoke(tool_args)
+                                # .invoke() executes the actual tool function
+                                print(f"📊 Tool result: {str(tool_result)[:100]}...")
+                            except Exception as e:
+                                tool_result = f"Tool failed: {str(e)}"
+                                tool_span.set_attribute("error", True)
+                                tool_span.record_exception(e)
+                                print(f"❌ Tool error: {e}")
+                        else:
+                            tool_result = f"Unknown tool: {tool_name}"
+
+                    # Add tool result to conversation so LLM can see it
+                    messages.append(ToolMessage(
+                        content=str(tool_result),
+                        tool_call_id=tool_call_id
+                        # Linking result back to the specific tool call request
+                        # LLM needs this to understand which result belongs to which call
+                    ))
+
+        # If we hit max_iterations without a final answer
+        span.set_attribute("max_iterations_hit", True)
+        return "Analysis incomplete — maximum iterations reached."

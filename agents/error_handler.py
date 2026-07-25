@@ -1,5 +1,8 @@
 from core.state import StockAnalysisState
 
+from opentelemetry import trace
+tracer = trace.get_tracer("stock-market-agent")
+
 def error_handler_node ( state : StockAnalysisState ) -> dict:
 
     """
@@ -8,15 +11,21 @@ def error_handler_node ( state : StockAnalysisState ) -> dict:
         Returns a graceful error response instead of crashing.
     """
 
-    errors = state . get ( "error", [] )
+    with tracer.start_as_current_span("Error_handler") as span:
 
-    ticker = state . get ( "ticker", "UNKNOWN" )
+        errors = state . get ( "error", [] )
 
-    print ( f" Error Handler : { errors } " )
+        ticker = state . get ( "ticker", "UNKNOWN" )
 
-    # Create a error report
+        span.set_attribute("ticker", ticker)
 
-    error_report = f"""
+        span.set_attribute("errors", errors)
+
+        print ( f" Error Handler : { errors } " )
+
+        # Create a error report
+
+        error_report = f"""
                         Analysis for {ticker} encountered issues:
 
                         Errors: {', '.join(errors)}
@@ -28,4 +37,4 @@ def error_handler_node ( state : StockAnalysisState ) -> dict:
                         Please retry or check the ticker symbol.
                     """.strip()
     
-    return { "final_report" : error_report, "recommendation" : "UNAVAILABLE", "confidence" : 0.0 }
+        return { "final_report" : error_report, "recommendation" : "UNAVAILABLE", "confidence" : 0.0 }

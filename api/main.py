@@ -26,6 +26,10 @@ from core . logger import get_logger, log_with_context
 
 from core . metrics import get_recent_metrics
 
+from core . tracing import setup_tracing
+
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
 
 
 logger = get_logger ( "api" )
@@ -74,7 +78,11 @@ async def lifespan ( app : FastAPI ) :
 
     app_state [ "graph" ] = build_graph()
 
-    logger . info ( "LangGraph pipeline ready" )
+    tracer = setup_tracing ()
+
+    FastAPIInstrumentor . instrument_app ( app )
+
+    logger . info ( "LangGraph pipeline and tempo tracer's are ready" )
 
     logger . info ( f" API ready -- version { config . APP_VERSION } " )
 

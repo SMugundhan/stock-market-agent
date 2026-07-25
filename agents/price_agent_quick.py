@@ -12,6 +12,11 @@ import uuid
 
 from core . logger import get_logger, log_with_context
 
+from opentelemetry import trace
+
+tracer = trace.get_tracer("stock-market-agent")
+
+
 # Reusable session — created once, reused across all price fetches,
 # with browser-like headers to reduce yfinance blocking on cloud IPs
 _yf_session = requests.Session()
@@ -40,42 +45,56 @@ def _fetch_price_quick_async_ ( ticker : str, session : requests . Session = Non
 
 def price_agent_quick_node ( state : StockAnalysisState ) -> dict:
 
-    ticker = state [ "ticker" ]
+    with tracer.start_as_current_span("price_agent_quick") as span:
 
-    request_id = state . get ( "request_id", str ( uuid . uuid4() ) )
+        ticker = state [ "ticker" ]
 
-    print ( f" Quick Price agent getting only price values for ticker : { ticker }, request_id : { request_id } " )
+        span.set_attribute("ticker", ticker)
 
-    log_with_context ( logger, "info", "Quick_Price_agent_started", ticker = ticker, request_id = request_id, agent = "quick_price_agent" )
+        request_id = state . get ( "request_id", str ( uuid . uuid4() ) )
+
+        print ( f" Quick Price agent getting only price values for ticker : { ticker }, request_id : { request_id } " )
+
+        log_with_context ( logger, "info", "Quick_Price_agent_started", ticker = ticker, request_id = request_id, agent = "quick_price_agent" )
 
 
-    # Check for cache
+        # Check for cache
 
-    cached_data = get_cached ( 'price', ticker )
+        cached_data = get_cached ( 'price', ticker )
 
-    if cached_data:
+        if cached_data:
 
-        log_with_context ( logger, "info", "CACHE HIT ---- RETURNING CACHED DATA", ticker = ticker, request_id = request_id, agent = "quick_price_agent" )
+            span.set_attribute("cache_hit", True)
 
-        return { "current_price" : cached_data [ "current_price" ] }
+            log_with_context ( logger, "info", "CACHE HIT ---- RETURNING CACHED DATA", ticker = ticker, request_id = request_id, agent = "quick_price_agent" )
+
+            return { "current_price" : cached_data [ "current_price" ] }
     
-    # If miss fetch
+        # If miss fetch
 
-    try :
+        span.set_attribute("cache_hit", False)
 
-        current_price = _fetch_price_quick_async_ ( ticker )
+        try :
+
+            current_price = _fetch_price_quick_async_ ( ticker )
         
-        result = { "current_price" : current_price }
+            result = { "current_price" : current_price }
+
+            span.set_attribute("current_price", current_price)
     
-        set_cached ( "price", ticker, result )
+            set_cached ( "price", ticker, result )
 
-        return { **result, "error" : [] }
+            return { **result, "error" : [] }
 
-    except Exception as e:
+        except Exception as e:
 
-        print ( f"Price Agent: Error fetching price data for { ticker } : { e }" )
+            span.set_attribute("error", True)
 
-        log_with_context ( logger, "info", "ERROR --- QUICK PRICE AGENT", ticker = ticker, request_id = request_id, agent = "quick_price_agent", error = str ( { e } ) )
+            span.record_exception(e)
 
-        return { "current_price" : None , "error" : [ str ( e ) ] }
+            print ( f"Price Agent: Error fetching price data for { ticker } : { e }" )
+
+            log_with_context ( logger, "info", "ERROR --- QUICK PRICE AGENT", ticker = ticker, request_id = request_id, agent = "quick_price_agent", error = str ( { e } ) )
+
+            return { "current_price" : None , "error" : [ str ( e ) ] }
 

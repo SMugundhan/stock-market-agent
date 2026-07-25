@@ -8,6 +8,10 @@ from core. state import StockAnalysisState
 
 from core . async_utils import run_sync_in_thread
 
+from opentelemetry import trace
+
+tracer = trace.get_tracer("stock-market-agent")
+
 def _calculate_risk_sync ( ticker : str ) -> dict :
 
     """
@@ -220,24 +224,34 @@ async def risk_agent_node ( state : StockAnalysisState ) -> dict:
 
     """
 
-    ticker = state [ 'ticker' ]
+    with tracer.start_as_current_span("risk_agent") as span:
 
-    print ( f" Risk agent calculating risk for { ticker }.... " )
+        ticker = state [ 'ticker' ]
 
-    try :
+        span.set_attribute("ticker", ticker)
 
-        # Calls the Sync function
+        print ( f" Risk agent calculating risk for { ticker }.... " )
 
-        result = await run_sync_in_thread ( _calculate_risk_sync, ticker )
+        try :
 
-        return { **result, "error" : [] }
+            # Calls the Sync function
+
+            result = await run_sync_in_thread ( _calculate_risk_sync, ticker )
+
+            return { **result, "error" : [] }
         
-    except Exception as e:
-        print(f"❌ Risk Agent Error: {e}")
-        return {
-            "volatility": None,
-            "risk_level": "MEDIUM",
-            "error": [f"Risk Agent failed: {str(e)}"]
-        }
+        except Exception as e:
+
+            print(f"❌ Risk Agent Error: {e}")
+
+            span . set_attribute ( "error", True )
+                        
+            span.record_exception(e)
+
+            return {
+                "volatility": None,
+                "risk_level": "MEDIUM",
+                "error": [f"Risk Agent failed: {str(e)}"]
+            }
 
 

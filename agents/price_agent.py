@@ -12,6 +12,10 @@ from core . logger import get_logger, log_with_context
 
 import requests
 
+from opentelemetry import trace
+
+tracer = trace.get_tracer("stock-market-agent")
+
 
 # Reusable session — created once, reused across all price fetches,
 # with browser-like headers to reduce yfinance blocking on cloud IPs
@@ -139,56 +143,78 @@ async def price_agent_node ( state: StockAnalysisState ) -> dict :
     """
     # step 1 : read the ticker from the state
     
-    ticker = state [ 'ticker' ]
+    with tracer . start_as_current_span ( "price_agent" ) as span:
 
-    request_id = state . get ( "request_id", str ( uuid . uuid4 () ) )
-    # Req id flows through all agent via state
-    # uuid4 gens a random uniq id like "a1b2c3n4o6...."
+        ticker = state [ 'ticker' ]
+
+        span . set_attribute ( "ticker", ticker )
+
+        span.set_attribute("ticker", ticker)
+
+        request_id = state . get ( "request_id", str ( uuid . uuid4 () ) )
+        # Req id flows through all agent via state
+        # uuid4 gens a random uniq id like "a1b2c3n4o6...."
+
+        span.set_attribute("request_id", request_id)
     
-    log_with_context ( logger, "info", "Price_agent_started", ticker = ticker, request_id = request_id, agent = "price_agent" )
+        log_with_context ( logger, "info", "Price_agent_started", ticker = ticker, request_id = request_id, agent = "price_agent" )
 
-    # step 1 check cache first
+        # step 1 check cache first
 
-    cached_data = get_cached ( "price", ticker )
+        cached_data = get_cached ( "price", ticker )
 
-    if cached_data :
+        if cached_data :
 
-        log_with_context ( logger, "info", "Cahce_Hit --returning cached price data", ticker = ticker, request_id = request_id,cache_hit = True, agent = "price_agent" )
+            log_with_context ( logger, "info", "Cahce_Hit --returning cached price data", ticker = ticker, request_id = request_id,cache_hit = True, agent = "price_agent" )
 
-        return { **cached_data, "error" : [] }
+            span . set_attribute ( "Cache_hit", True )
+
+            return { **cached_data, "error" : [] }
     
-    # Step 2 if Miss then fetch fresh data
+        # Step 2 if Miss then fetch fresh data
 
-    import time
+        span . set_attribute ( "Cache_hit", False )
 
-    start = time . time ()
+        import time
 
-    try :
+        start = time . time ()
 
-        # Await the thread pool wrapped sync call
-        result = await run_sync_in_thread ( _fetch_price_sync, ticker )
-        # Await here means : while yfinance is doing its blocking network call in a seperate thread, This event loop is free to go on New agent or any
+        try :
 
-        duration_ms = round ( ( time . time () - start ) * 1000, 2 )
+            # Await the thread pool wrapped sync call
+            result = await run_sync_in_thread ( _fetch_price_sync, ticker )
+            # Await here means : while yfinance is doing its blocking network call in a seperate thread, This event loop is free to go on New agent or any
 
-        log_with_context ( logger, "info", "Price data fetched successfully", ticker = ticker, request_id = request_id,price = result [ "current_price" ],rsi = result [ "rsi" ],duration_ms = duration_ms, cache_hit = False, agent = "price_agent" )
+            duration_ms = round ( ( time . time () - start ) * 1000, 2 )
 
-        # Saves to cache
+            span.set_attribute("duration_ms", duration_ms)
 
-        set_cached ( "price", ticker, result )
+            span.set_attribute("current_price", result["current_price"])
 
-        # Step 7 : Write the results back to the state
+            span.set_attribute("rsi", result["rsi"])
+
+            log_with_context ( logger, "info", "Price data fetched successfully", ticker = ticker, request_id = request_id,price = result [ "current_price" ],rsi = result [ "rsi" ],duration_ms = duration_ms, cache_hit = False, agent = "price_agent" )
+
+            # Saves to cache
+
+            set_cached ( "price", ticker, result )
+
+            # Step 7 : Write the results back to the state
         
-        # LanGraph merges this dict with existing state, so we only need to return the new values
+            # LanGraph merges this dict with existing state, so we only need to return the new values
 
-        return {
-            **result,
-            "error" : []
-            }
+            return {
+                **result,
+                "error" : []
+                }
     
-    except Exception as e :
+        except Exception as e :
 
-        log_with_context ( logger, "error", f"Price_agent_failed : { str ( e ) }", ticker = ticker, request_id = request_id,error = str ( e ), agent = "price_agent" )
+            span . set_attribute ( "error", True )
 
-        return { "current_price" : None , "price_change_pct" : None , "rsi" : None , "error" : [ str ( e ) ] }
+            span.record_exception(e)   # ← special OTel method: attaches full exception + stack trace to the span
+
+            log_with_context ( logger, "error", f"Price_agent_failed : { str ( e ) }", ticker = ticker, request_id = request_id,error = str ( e ), agent = "price_agent" )
+
+            return { "current_price" : None , "price_change_pct" : None , "rsi" : None , "error" : [ str ( e ) ] }
 
