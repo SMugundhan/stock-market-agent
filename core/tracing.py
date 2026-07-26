@@ -8,12 +8,20 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 
 from opentelemetry.sdk.resources import Resource
 
+import os
+
 def setup_tracing ( service_name : str = "stock-market-agent" ) :
 
     """
     Sets up OpenTelemetry tracing, exporting spans to Tempo via OTLP.
     Call this once at app startup (in main.py's lifespan).
     """
+
+    if os . getenv ( "OTEL_EXPORTER_ENABLED", "false" ) . lower () != "true" :
+
+        print ( "Tracing disabled ( TEL_EXPORTER_ENABLED not set ) ---- skipping Tempo setup" )
+
+        return trace . get_tracer ( service_name )  # return no-op tracer, safe to use everywhere
 
     resource = Resource . create ( { "service.name" : service_name } )
 

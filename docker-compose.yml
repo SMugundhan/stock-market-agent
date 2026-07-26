@@ -35,6 +35,7 @@ services:
       # Inside Docker network, containers find each other by SERVICE NAME
       # "redis" here = the name of the redis service below
       - APP_VERSION=1.0.0
+      - OTEL_EXPORTER_ENABLED=true
 
     depends_on:
       redis:

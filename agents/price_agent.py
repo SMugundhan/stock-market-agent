@@ -78,6 +78,8 @@ def _fetch_price_sync ( ticker : str, session : requests . Session = None ) -> d
 
         raise ValueError ( "No price data for ticker" )
 
+    hist = hist.dropna(subset=["Close"]) 
+
     # Step 4 : Get the most recent closing price from the dataframe
     # [ "Close" ] -> gives us the Close column, .iloc [ -1 ] gives us the last row (most recent day)
 
