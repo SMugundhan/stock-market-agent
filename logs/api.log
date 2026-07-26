@@ -460,3 +460,8 @@
 {"timestamp": "2026-07-26T06:16:39.352088+00:00", "level": "INFO", "logger": "stock_agent.api", "message": "Server shutting down.....", "module": "main", "function": "lifespan", "line": 94, "version": "1.0.0"}
 {"timestamp": "2026-07-26T06:16:39.388846+00:00", "level": "INFO", "logger": "stock_agent.api", "message": "REDIS connection closed..", "module": "main", "function": "lifespan", "line": 100, "version": "1.0.0"}
 {"timestamp": "2026-07-26T06:16:39.428619+00:00", "level": "INFO", "logger": "stock_agent.api", "message": "shutdown completed", "module": "main", "function": "lifespan", "line": 108, "version": "1.0.0"}
+{"timestamp": "2026-07-26T06:16:51.379317+00:00", "level": "INFO", "logger": "stock_agent.api", "message": "server starting up...", "module": "main", "function": "lifespan", "line": 62, "version": "1.0.0"}
+{"timestamp": "2026-07-26T06:16:51.393716+00:00", "level": "INFO", "logger": "stock_agent.api", "message": "Redis Connection verified", "module": "main", "function": "lifespan", "line": 69, "version": "1.0.0"}
+{"timestamp": "2026-07-26T06:16:51.394296+00:00", "level": "INFO", "logger": "stock_agent.api", "message": "Building LangGraph pipeline.....", "module": "main", "function": "lifespan", "line": 77, "version": "1.0.0"}
+{"timestamp": "2026-07-26T06:16:51.483899+00:00", "level": "INFO", "logger": "stock_agent.api", "message": "LangGraph pipeline and tempo tracer's are ready", "module": "main", "function": "lifespan", "line": 85, "version": "1.0.0"}
+{"timestamp": "2026-07-26T06:16:51.484728+00:00", "level": "INFO", "logger": "stock_agent.api", "message": " API ready -- version 1.0.0 ", "module": "main", "function": "lifespan", "line": 87, "version": "1.0.0"}

@@ -83,26 +83,30 @@ def validate_and_resolve_ticker(ticker: str) -> tuple[str, str | None]:
         return resolved, None
 
     # Layer 3: real-time validation via yFinance
+
+    # Changing the info to hist as it causes the another issue...see day 18 to understand
     try:
         test = ysf.Ticker(ticker, session=_yf_session)
-        info = test.info
+        hist = test . history ( period = "5d" )
 
-        has_price = info.get("regularMarketPrice") is not None
-        has_name = info.get("longName") is not None
+        if hist . empty :
+            # yfinance responded succesfully but found no tracing data
+            # This is confirmed signal the ticker is genuinely invalid
 
-        if not has_name and not has_price:
-            # yfinance returned a response, but with no useful data.
-            # This is a CONFIRMED signal the ticker is genuinely invalid
-            # (Yahoo responded, just found nothing) — safe to reject.
-            suggestions = get_close_matches(ticker, KNOWN_TICKERS, n=3, cutoff=0.5)
-            if suggestions:
-                suggestion_str = ','.join(suggestions)
-                return "", f" Ticker {ticker} not found. Do you mean : {suggestion_str} ? "
-            else:
-                return "", f" Ticker {ticker} not found. Please check the symbol "
+            suggestions = get_close_matches ( ticker, KNOWN_TICKERS, n = 3, cutoff = 0.5 )
 
-        company_name = info.get("longName", ticker)
-        print(f" Validated : {ticker} = {company_name} ")
+            if suggestions :
+
+                suggestion_str = ','.join ( suggestions )
+
+                return "", f" Ticker {ticker} not found. Do yo mean : { suggestion_str }? "
+
+            else :
+
+                return "", f" Ticker { ticker } not found. Please check the symbol "
+
+            
+        print(f" Validated : {ticker}")
         return ticker, None
 
     except Exception as e:
