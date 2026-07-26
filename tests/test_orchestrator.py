@@ -95,6 +95,7 @@ class TestTickerValidation:
 # ── Helper context manager ──────────────────────────────
 from contextlib import contextmanager
 from unittest.mock import patch
+import pandas as pd
 
 @contextmanager
 def patch_yfinance_valid():
@@ -104,8 +105,11 @@ def patch_yfinance_valid():
     not the yFinance validation itself.
     """
     with patch("agents.orchestrator.ysf.Ticker") as mock:
-        mock.return_value.info = {
-            "regularMarketPrice": 189.3,
-            "longName": "Apple Inc."
-        }
+
+        # validate_and_resolve_ticker now checks history(), not .info —
+        # return a non-empty DataFrame so hist.empty is False
+
+        mock.return_value.history.return_value = pd. DataFrame ( {
+            "Close" : [ 100.0, 101.0, 95.0 ]
+        } )
         yield mock
