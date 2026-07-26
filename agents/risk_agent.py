@@ -8,9 +8,15 @@ from core. state import StockAnalysisState
 
 from core . async_utils import run_sync_in_thread
 
+from memory.cache import set_cached, get_cached          # ← add
+
+from agents.price_agent import _yf_session                # ← reuse the shared session
+
 from opentelemetry import trace
 
 tracer = trace.get_tracer("stock-market-agent")
+
+
 
 def _calculate_risk_sync ( ticker : str ) -> dict :
 
@@ -19,9 +25,7 @@ def _calculate_risk_sync ( ticker : str ) -> dict :
     """
     # Step 1 fetch historical data
 
-    session = requests . Session()
-
-    stock = yf. Ticker ( ticker, session = session )
+    stock = yf. Ticker ( ticker, session = _yf_session )
 
     hist = stock.history ( period = "6mo", interval = "1d" )
 
@@ -106,7 +110,7 @@ def _calculate_risk_sync ( ticker : str ) -> dict :
     # beta = how this stock mpves relative to the S&P 500 market
     # We compare stock returns to SPY ( S&P 500 ETF ) returns
 
-    spy = yf. Ticker ( "SPY" )
+    spy = yf. Ticker ( "SPY", session = _yf_session )
 
     # SPY = It tracks overall US market
 
@@ -242,7 +246,7 @@ async def risk_agent_node ( state : StockAnalysisState ) -> dict:
         
         except Exception as e:
 
-            print(f"❌ Risk Agent Error: {e}")
+            print(f" Risk Agent Error: {e}")
 
             span . set_attribute ( "error", True )
                         
